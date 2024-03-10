@@ -12,8 +12,83 @@ namespace TestMemoryCache
 {
     public class DataStoreTests
     {
-        private readonly Mock<ILogger<DataStore>> loggerMock = new Mock<ILogger<DataStore>>();
-        private readonly Mock<IOptions<DataStore.DataStoreOptions>> optionsMock = new Mock<IOptions<DataStore.DataStoreOptions>>();
+        private readonly Mock<ILogger<DataStore<string, object>>> loggerMock = new Mock<ILogger<DataStore<string, object>>>();
+        private readonly Mock<IOptions<DataStore<string, object>.DataStoreOptions>> optionsMock = new Mock<IOptions<DataStore<string, object>.DataStoreOptions>>();
+
+
+
+        [Theory]
+        [InlineData(10, 11, 1)]
+        [InlineData(10, 11, 2)]
+        [InlineData(10, 10, 1)]
+        [InlineData(10, 10, 2)]
+        [InlineData(10, 100, 100)]
+        [InlineData(10, 100, 1000)]
+        public void Add_Should_Be_Thread_Safe(int capacity, int numItemsPerThread, int numThreads )
+        {
+            //Arrange
+            optionsMock.SetupGet(o => o.Value).Returns(new DataStore<string, object>.DataStoreOptions { Capacity = capacity });
+            var dataStore = new DataStore<string, object>(loggerMock.Object, optionsMock.Object);
+            var tasks = new Task[numThreads];
+
+            // Acct
+            // Concurrently add items
+            for (int i = 0; i < numThreads; i++)
+            {
+                tasks[i] = Task.Run(() =>
+                {
+                    int ii = i;
+                    for (int j = 0; j < numItemsPerThread; j++)
+                    {                     
+                        dataStore.Add(Guid.NewGuid().ToString(), ii * numItemsPerThread + j);
+
+                    }
+                });
+            }
+
+            Task.WaitAll(tasks);
+            
+
+            //Assert
+            //Must respect the capacity
+            Assert.Equal(capacity, dataStore.Count);
+
+        }
+
+        
+        //[Theory]
+        //[InlineData(10, 11, 1)]
+        //[InlineData(10, 11, 2)]
+        //[InlineData(10, 100, 100)]
+        //[InlineData(10, 100, 1000)]
+        //public void Add_RepetedKey_Should_Be_Thread_Safe(int capacity, int numItemsPerThread, int numThreads)
+        //{
+        //    //Arrange
+        //    optionsMock.SetupGet(o => o.Value).Returns(new DataStore<string, object>.DataStoreOptions { Capacity = capacity });
+        //    var dataStore = new DataStore<string, object>(loggerMock.Object, optionsMock.Object);
+        //    var tasks = new Task[numThreads];
+
+        //    //Acct
+        //    // Concurrently add items
+        //    for (int i = 0; i < numThreads; i++)
+        //    {
+        //        tasks[i] = Task.Run(() =>
+        //        {
+        //            for (int j = 0; j < numItemsPerThread; j++)
+        //            {
+        //                dataStore.Add($"Key{j}", j * numItemsPerThread);
+        //            }
+        //        });
+        //    }
+
+        //    Task.WaitAll(tasks);
+
+
+        //    //Assert
+        //    Assert.Equal(capacity, dataStore.Count);
+
+        //}
+
 
         [Theory]
         [InlineData(5, 3, 3)]
@@ -22,8 +97,9 @@ namespace TestMemoryCache
         public void Add_Should_Add_Item_To_Cache(int capacity, int totalToAdd, int countResult)
         {
             // Arrange
-            optionsMock.SetupGet(o => o.Value).Returns(new DataStore.DataStoreOptions { Capacity = capacity });
-            var dataStore = new DataStore(loggerMock.Object, optionsMock.Object);
+            optionsMock.SetupGet(o => o.Value).Returns(new DataStore<string, object>.DataStoreOptions { Capacity = capacity });
+
+            var dataStore = new DataStore<string, object>(loggerMock.Object, optionsMock.Object);
 
             // Act 
             // It will exceed the capacity by one
@@ -41,8 +117,10 @@ namespace TestMemoryCache
         public void Add_Should_Evict_Least_Recently_ADDED_Item_When_Capacity_Is_Exceeded()
         {
             // Arrange
-            optionsMock.SetupGet(o => o.Value).Returns(new DataStore.DataStoreOptions { Capacity = 2 });
-            var dataStore = new DataStore(loggerMock.Object, optionsMock.Object);
+            
+            optionsMock.SetupGet(o => o.Value).Returns(new DataStore<string, object>.DataStoreOptions { Capacity = 2 });
+
+            var dataStore = new DataStore<string, object>(loggerMock.Object, optionsMock.Object);
 
             // Act
             dataStore.Add("key1", "value1");
@@ -60,8 +138,10 @@ namespace TestMemoryCache
         public void Add_Should_Evict_Least_Recently_USED_Item_When_Capacity_Is_Exceeded()
         {
             // Arrange
-            optionsMock.SetupGet(o => o.Value).Returns(new DataStore.DataStoreOptions { Capacity = 3 });
-            var dataStore = new DataStore(loggerMock.Object, optionsMock.Object);
+            
+            optionsMock.SetupGet(o => o.Value).Returns(new DataStore<string, object>.DataStoreOptions { Capacity = 3 });
+
+            var dataStore = new DataStore<string, object>(loggerMock.Object, optionsMock.Object);
 
             // Act
             dataStore.Add("key1", "value1");

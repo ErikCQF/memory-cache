@@ -4,9 +4,9 @@ using System.Collections.Generic;
 
 namespace MemoryCache
 {
-    public interface IDataStore
+    public interface IDataStore<Key, Value>
     {        
-        void Add(string key, object value);
-        object? Get(string key);             
+        void Add(Key key, Value value);
+        Value? Get(Key key);             
     }
 }

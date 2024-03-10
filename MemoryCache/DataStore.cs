@@ -7,9 +7,8 @@ namespace MemoryCache
     /// The cache should implement the ‘least recently used’ approach when selecting which item
     //  to evict.
     /// </summary>
-    public class DataStore : IDataStore
+    public class DataStore<Key, Value> : IDataStore<Key, Value>
     {
-
         public class DataStoreOptions
         {
             /// <summary>
@@ -20,13 +19,13 @@ namespace MemoryCache
 
         private object _lock = new object();
 
-        private readonly HashSet<DataEnvolope> _dataHashSet = new HashSet<DataEnvolope>();        
-        private readonly LinkedList<DataEnvolope> _dataLinkedList =  new  LinkedList<DataEnvolope>();
+        private readonly HashSet<DataEnvolope<Key, Value>> _dataHashSet = new HashSet<DataEnvolope<Key, Value>>();        
+        private readonly LinkedList<DataEnvolope<Key, Value>> _dataLinkedList =  new  LinkedList<DataEnvolope<Key, Value>>();
 
-        private readonly ILogger<DataStore> _logger;
+        private readonly ILogger<DataStore<Key, Value>> _logger;
         private readonly IOptions<DataStoreOptions> _options;
 
-        public DataStore(ILogger<DataStore> logger, IOptions<DataStoreOptions> options)
+        public DataStore(ILogger<DataStore<Key, Value>> logger, IOptions<DataStoreOptions> options)
         {
             this._logger = logger;
             this._options = options;
@@ -46,14 +45,15 @@ namespace MemoryCache
             }
         }
 
-        public void Add(string key, object value)
+        public void Add(Key key, Value value)
         {
             lock (_lock)
             {
-                var dataItem = new DataEnvolope(key, value);
+                var dataItem = new DataEnvolope<Key, Value>(key, value);
 
+                Console.WriteLine($"key: {key} . Count:  {_dataHashSet.Count}");
 
-                while (Count >= _options.Value.Capacity)
+                while (_dataHashSet.Count >= _options.Value.Capacity)
                 {
                     var last = _dataLinkedList.Last();
                     if (last != null)
@@ -81,19 +81,20 @@ namespace MemoryCache
         /// </summary>
 
 
-        public object? Get(string key)
+        public Value? Get(Key key)
         {
             lock (_lock)
             {
-                var dataItem = new DataEnvolope(key, null);
-                DataEnvolope? found;
+                Value? val= default(Value); ;
+                var dataItem = new DataEnvolope<Key, Value>(key, val);
+                DataEnvolope<Key, Value>? found;
                 if (_dataHashSet.TryGetValue(dataItem, out found))
                 {
                     _dataLinkedList.Remove(found);
                     _dataLinkedList.AddFirst(found);
                     return found.keyValuePair.Value;
                 }
-                return null;
+                return val;
             }
             
         }
