@@ -1,0 +1,76 @@
+# Visual Studio Code
+.vscode/
+.vs
+*.code-workspace
+
+# Visual Studio built files
+bin/
+obj/
+*.dll
+*.exe
+*.pdb
+*.suo
+*.user
+*.userprefs
+*.log
+*.vspscc
+*.vssscc
+.*/Debug*/
+.*/Release*/
+
+# Rider built files
+.idea/
+*.sln.iml
+
+# NuGet
+packages/
+*.nupkg
+!.nuget/
+
+# User-specific files
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# .NET Core
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+[Bb]uild/
+[Bb]uilds/
+[Ii]ntermediate/
+[Tt]emp/
+[Tt]est[Rr]esults/
+[Bb]uild[Ll]ogs/
+[Oo]bjec[Tt]Repos/
+[Pp]recompiled[Dd]lls/
+[Exx]ports/
+[Cc]ache/
+[Ss]dl/
+[Ee]xternal[Bb]inary/
+[Tt]est[Rr]esult[Rr]eport/
+[Nn]uget/
+[Tt]mp/
+*.nuget/
+*.DotSettings.user
+
+# Resharper
+_ReSharper*/
+*.[Rr]e[Ss]harper
+*.DotSettings
