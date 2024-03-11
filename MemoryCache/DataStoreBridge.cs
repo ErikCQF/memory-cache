@@ -1,5 +1,6 @@
-﻿using MemoryCache.EvictionPolicies;
-using MemoryCache.Infra;
+﻿using MemoryCache.Infra;
+using MemoryCache.Infra.EvictionPolicies;
+using MemoryCache.Infra.Storages;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Reactive.Subjects;
@@ -11,23 +12,10 @@ namespace MemoryCache
     /// </summary>
     public sealed class DataStoreBridge<TKey, TValue> : IDataStoreBridge<TKey, TValue>
     {
-        //For Settings
-        public class DataStoreOptions
-        {
-            /// <summary>
-            /// Provides the Max number of items the memory cache can hold
-            /// </summary>
-            public int Capacity { get; set; }
-        }
-
-        
-
-        // For event-driven
+        // Events
         private readonly Subject<DataStoreEvent<TKey>> _dataStoreSubject = new Subject<DataStoreEvent<TKey>>();
-
+        private readonly HashSet<DataItemObserver<TKey>> _subscribersSet = new HashSet<DataItemObserver<TKey>>();
         public IObservable<DataStoreEvent<TKey>> DataStoreEvents => _dataStoreSubject;
-
-
         public IObservable<DataStoreEvent<TKey>> DataItemEvents(TKey key)
         {
             lock (_lock)
@@ -46,20 +34,16 @@ namespace MemoryCache
             }
         }
 
+        // Evictions Polices
+        private readonly IEnumerable<IEvictionPolicy<TKey, TValue>> _evictionPolicies;
 
-        // For Data Storage
-        // TODO: It should be moved to a repo and the repos uses command and query separations. 
-        // It will decoulpe the component and the storage.
-        private readonly HashSet<DataItemObserver<TKey>> _subscribersSet = new HashSet<DataItemObserver<TKey>>();
-        
+        // Data Storage
+        private readonly IDataStorage<TKey, TValue> _dataStorage;
 
+        //Settings, logs and others
         private readonly ILogger<DataStoreBridge<TKey, TValue>> _logger;
 
         private readonly IOptions<DataStoreOptions> _options;
-
-        private readonly IEnumerable<IEvictionPolicy<TKey, TValue>> _evictionPolicies;
-        
-        private readonly IDataStorage<TKey, TValue> _dataStorage;
 
         private object _lock = new object();
 
@@ -82,10 +66,7 @@ namespace MemoryCache
         {
             get
             {
-                lock (_lock)
-                {
-                    return _dataStorage.Count;
-                }
+                return _dataStorage.Count;
             }
         }
 
@@ -93,21 +74,15 @@ namespace MemoryCache
         {
             get
             {
-                lock (_lock)
-                {
-                    return _options.Value.Capacity;
-                }
+                return _options.Value.Capacity;
             }
         }
 
 
         public void AddUpdate(TKey key, TValue value)
         {
-            lock (_lock)
-            {
-                EvictIfNeeded();               
-                AddOrUpdate(key, value);
-            }
+            EvictIfNeeded();
+            AddOrUpdate(key, value);
         }
         public void Notify(TKey key, DataStoreEventType dataStoreEventType)
         {
@@ -126,11 +101,7 @@ namespace MemoryCache
         /// </summary>
         public TValue? Get(TKey key)
         {
-            lock (_lock)
-            {                
-               return _dataStorage.Get(key);                
-            }
-
+            return _dataStorage.Get(key);
         }
 
         public DataEnvolope<TKey, TValue>? LeasUsed()
@@ -150,12 +121,12 @@ namespace MemoryCache
 
         private void AddOrUpdate(TKey key, TValue value)
         {
-            _dataStorage.AddOrUpdate(key, value);            
+            _dataStorage.AddOrUpdate(key, value);
         }
 
         public void Remove(TKey key)
         {
-            _dataStorage.Remove(key);            
+            _dataStorage.Remove(key);
         }
     }
 

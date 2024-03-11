@@ -1,6 +1,4 @@
-﻿using MemoryCache.Infra;
-
-namespace MemoryCache
+﻿namespace MemoryCache.Infra.Storages
 {
     public class DataStorage<TKey, TValue> : IDataStorage<TKey, TValue>
     {
@@ -62,7 +60,7 @@ namespace MemoryCache
         {
             lock (_lock)
             {
-                var val = this.Get(key);
+                var val = Get(key);
                 var envolpe = new DataEnvolope<TKey, TValue>(key, val);
                 _dataHashSet.Remove(envolpe);
                 _dataLinkedList.Remove(envolpe);

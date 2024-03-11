@@ -1,6 +1,4 @@
-﻿using MemoryCache.Infra;
-
-namespace MemoryCache.EvictionPolicies
+﻿namespace MemoryCache.Infra.EvictionPolicies
 {
     public class EvictionStrategyLru<TKey, TValue> : IEvictionPolicy<TKey, TValue>
     {

@@ -1,6 +1,4 @@
-﻿using MemoryCache.Infra;
-
-namespace MemoryCache
+﻿namespace MemoryCache.Infra.Storages
 {
     public interface IDataStorage<TKey, TValue>
     {

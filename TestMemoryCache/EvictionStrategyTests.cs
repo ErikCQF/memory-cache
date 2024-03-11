@@ -1,15 +1,7 @@
-﻿using MemoryCache.EvictionPolicies;
+﻿using MemoryCache;
 using MemoryCache.Infra;
-using MemoryCache;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
+using MemoryCache.Infra.EvictionPolicies;
 using Moq;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Newtonsoft.Json.Linq;
 
 
 namespace TestMemoryCache

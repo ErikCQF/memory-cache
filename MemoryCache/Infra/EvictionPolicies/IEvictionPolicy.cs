@@ -1,4 +1,4 @@
-﻿namespace MemoryCache.EvictionPolicies
+﻿namespace MemoryCache.Infra.EvictionPolicies
 {
     public interface IEvictionPolicy<TKey, TValue>
     {
