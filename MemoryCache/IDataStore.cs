@@ -7,9 +7,10 @@ namespace MemoryCache
         int Count { get; }
         int Capacity { get; }
 
-        void Add(TKey key, TValue value);
+        void AddUpdate(TKey key, TValue value);
         TValue? Get(TKey key);
-        DataEnvolope<TKey, TValue>? LastUsed();
+        DataEnvolope<TKey, TValue>? LeasUsed();
+        void Notify(TKey key, DataStoreEventType dataStoreEventType);
         void Remove(TKey key);
     }
 }

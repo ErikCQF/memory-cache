@@ -1,8 +1,10 @@
 ﻿using MemoryCache;
+using MemoryCache.EvictionPolicies;
 using MemoryCache.Infra;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
+using System.Linq;
 
 namespace TestMemoryCache
 {
@@ -12,12 +14,18 @@ namespace TestMemoryCache
         private readonly Mock<ILogger<DataStore<string, object>>> loggerMock = new Mock<ILogger<DataStore<string, object>>>();
         private readonly Mock<IOptions<DataStore<string, object>.DataStoreOptions>> optionsMock = new Mock<IOptions<DataStore<string, object>.DataStoreOptions>>();
 
+        private List<IEvictionPolicy<string, object>> evictionPolices = new List<IEvictionPolicy<string, object>>();
+
         [Fact]
         public void Subscribers_DataStore_Receive_Eviction_Events()
         {
             // Arrange
             optionsMock.SetupGet(o => o.Value).Returns(new DataStore<string, object>.DataStoreOptions { Capacity = 2 });
-            var dataStore = new DataStore<string, object>(loggerMock.Object, optionsMock.Object);
+
+            // Add the implemented Eviction Policy strategy 
+            evictionPolices.Add(new EvictionStrategyLru<string, object>());
+
+            var dataStore = new DataStore<string, object>(loggerMock.Object, optionsMock.Object, evictionPolices);
 
             var evictionEventReceived = false;
             var keyoBeEvicted = "value1";
@@ -45,10 +53,10 @@ namespace TestMemoryCache
                 }
             });
 
-            dataStore.Add(keyoBeEvicted, keyoBeEvicted);
+            dataStore.AddUpdate(keyoBeEvicted, keyoBeEvicted);
 
-            dataStore.Add("key2", "value2");
-            dataStore.Add("key3", "value3"); // This should trigger eviction
+            dataStore.AddUpdate("key2", "value2");
+            dataStore.AddUpdate("key3", "value3"); // This should trigger eviction
 
             // Assert
             Assert.True(evictionEventReceived); // a event has been triggered
@@ -66,7 +74,11 @@ namespace TestMemoryCache
         {
             // Arrange
             optionsMock.SetupGet(o => o.Value).Returns(new DataStore<string, object>.DataStoreOptions { Capacity = 2 });
-            var dataStore = new DataStore<string, object>(loggerMock.Object, optionsMock.Object);
+
+            // Add the implemented Eviction Policy strategy 
+            evictionPolices.Add(new EvictionStrategyLru<string, object>());
+
+            var dataStore = new DataStore<string, object>(loggerMock.Object, optionsMock.Object, evictionPolices);
 
             var evictionEventReceived = false;
             var keyoBeEvicted = "key1";
@@ -79,7 +91,7 @@ namespace TestMemoryCache
 
             // Act
 
-            dataStore.Add(keyoBeEvicted, keyoBeEvicted);
+            dataStore.AddUpdate(keyoBeEvicted, keyoBeEvicted);
 
             dataStore.DataItemEvents(keyoBeEvicted)
             .Subscribe(ev =>
@@ -101,8 +113,8 @@ namespace TestMemoryCache
                 }
             });
 
-            dataStore.Add("key2", "value2");
-            dataStore.Add("key3", "value3"); // This should trigger eviction
+            dataStore.AddUpdate("key2", "value2");
+            dataStore.AddUpdate("key3", "value3"); // This should trigger eviction
 
             // Assert
             Assert.True(evictionEventReceived); // a event has been triggered
@@ -122,7 +134,11 @@ namespace TestMemoryCache
         {
             // Arrange
             optionsMock.SetupGet(o => o.Value).Returns(new DataStore<string, object>.DataStoreOptions { Capacity = 2 });
-            var dataStore = new DataStore<string, object>(loggerMock.Object, optionsMock.Object);
+
+            // Add the implemented Eviction Policy strategy 
+            evictionPolices.Add(new EvictionStrategyLru<string, object>());
+
+            var dataStore = new DataStore<string, object>(loggerMock.Object, optionsMock.Object, evictionPolices);
 
             var evictionEventReceived = false;
             var keyoBeEvicted = "key1";
@@ -146,7 +162,7 @@ namespace TestMemoryCache
             });
 
 
-            dataStore.Add(keyoBeEvicted, keyoBeEvicted);
+            dataStore.AddUpdate(keyoBeEvicted, keyoBeEvicted);
 
             dataStore.DataItemEvents(keyoBeEvicted)
             .Subscribe(ev =>
@@ -158,8 +174,8 @@ namespace TestMemoryCache
                 }
             });
 
-            dataStore.Add("key2", "value2");
-            dataStore.Add("key3", "value3"); // This should trigger eviction
+            dataStore.AddUpdate("key2", "value2");
+            dataStore.AddUpdate("key3", "value3"); // This should trigger eviction
 
             // Assert
             Assert.True(evictionEventReceived); // a event has been triggered
@@ -175,11 +191,17 @@ namespace TestMemoryCache
 
         [Theory]
         [InlineData(10, 100)]
+        [InlineData(10, 10000)]
         public void Add_Same_Key_ShouldBe_ThreadSafe(int capacity, int numThreads)
         {
             //Arrange
             optionsMock.SetupGet(o => o.Value).Returns(new DataStore<string, object>.DataStoreOptions { Capacity = capacity });
-            var dataStore = new DataStore<string, object>(loggerMock.Object, optionsMock.Object);
+
+            // Add the implemented Eviction Policy strategy 
+            evictionPolices.Add(new EvictionStrategyLru<string, object>());
+
+            var dataStore = new DataStore<string, object>(loggerMock.Object, optionsMock.Object, evictionPolices);
+
             var tasks = new Task[numThreads];
 
 
@@ -189,7 +211,7 @@ namespace TestMemoryCache
             {
                 tasks[i] = Task.Run(() =>
                 {
-                    dataStore.Add("Same Key", "Same Value");
+                    dataStore.AddUpdate("Same Key", "Same Value");
 
                 });
             }
@@ -208,12 +230,18 @@ namespace TestMemoryCache
         [InlineData(10, 10, 1)]
         [InlineData(10, 10, 2)]
         [InlineData(10, 100, 100)]
-        [InlineData(10, 100, 1000)]
+        [InlineData(10, 100, 1000)]        
+
         public void Add_Should_Be_Thread_Safe(int capacity, int numItemsPerThread, int numThreads)
         {
             //Arrange
             optionsMock.SetupGet(o => o.Value).Returns(new DataStore<string, object>.DataStoreOptions { Capacity = capacity });
-            var dataStore = new DataStore<string, object>(loggerMock.Object, optionsMock.Object);
+
+            // Add the implemented Eviction Policy strategy 
+            evictionPolices.Add(new EvictionStrategyLru<string, object>());
+
+            var dataStore = new DataStore<string, object>(loggerMock.Object, optionsMock.Object, evictionPolices);
+
             var tasks = new Task[numThreads];
 
             // Acct
@@ -225,7 +253,7 @@ namespace TestMemoryCache
                     int ii = i;
                     for (int j = 0; j < numItemsPerThread; j++)
                     {
-                        dataStore.Add(Guid.NewGuid().ToString(), ii * numItemsPerThread + j);
+                        dataStore.AddUpdate(Guid.NewGuid().ToString(), ii * numItemsPerThread + j);
 
                     }
                 });
@@ -284,13 +312,16 @@ namespace TestMemoryCache
             // Arrange
             optionsMock.SetupGet(o => o.Value).Returns(new DataStore<string, object>.DataStoreOptions { Capacity = capacity });
 
-            var dataStore = new DataStore<string, object>(loggerMock.Object, optionsMock.Object);
+            // Add the implemented Eviction Policy strategy 
+            evictionPolices.Add(new EvictionStrategyLru<string, object>());
+
+            var dataStore = new DataStore<string, object>(loggerMock.Object, optionsMock.Object, evictionPolices);
 
             // Act 
             // It will exceed the capacity by one
             for (int i = 0; i < totalToAdd; i++)
             {
-                dataStore.Add(i.ToString(), i);
+                dataStore.AddUpdate(i.ToString(), i);
             }
 
             // Assert
@@ -305,12 +336,15 @@ namespace TestMemoryCache
 
             optionsMock.SetupGet(o => o.Value).Returns(new DataStore<string, object>.DataStoreOptions { Capacity = 2 });
 
-            var dataStore = new DataStore<string, object>(loggerMock.Object, optionsMock.Object);
+            // Add the implemented Eviction Policy strategy 
+            evictionPolices.Add(new EvictionStrategyLru<string, object>());
+
+            var dataStore = new DataStore<string, object>(loggerMock.Object, optionsMock.Object, evictionPolices);
 
             // Act
-            dataStore.Add("key1", "value1");
-            dataStore.Add("key2", "value2");
-            dataStore.Add("key3", "value3");
+            dataStore.AddUpdate("key1", "value1");
+            dataStore.AddUpdate("key2", "value2");
+            dataStore.AddUpdate("key3", "value3");
 
             // Assert
             Assert.Null(dataStore.Get("key1")); // key1 should be evicted
@@ -326,17 +360,20 @@ namespace TestMemoryCache
 
             optionsMock.SetupGet(o => o.Value).Returns(new DataStore<string, object>.DataStoreOptions { Capacity = 3 });
 
-            var dataStore = new DataStore<string, object>(loggerMock.Object, optionsMock.Object);
+            // Add the implemented Eviction Policy strategy 
+            evictionPolices.Add(new EvictionStrategyLru<string, object>());
+
+            var dataStore = new DataStore<string, object>(loggerMock.Object, optionsMock.Object, evictionPolices);
 
             // Act
-            dataStore.Add("key1", "value1");
-            dataStore.Add("key2", "value2");
-            dataStore.Add("key3", "value3");
+            dataStore.AddUpdate("key1", "value1");
+            dataStore.AddUpdate("key2", "value2");
+            dataStore.AddUpdate("key3", "value3");
             // key1 is not the last accessed anymore. it is key2 2
             dataStore.Get("key1");
 
             //Key 2 shluld be evicted
-            dataStore.Add("key4", "value4");
+            dataStore.AddUpdate("key4", "value4");
 
             // Assert
             Assert.Null(dataStore.Get("key2")); // key1 should be evicted

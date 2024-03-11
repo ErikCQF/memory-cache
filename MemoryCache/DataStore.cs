@@ -1,4 +1,5 @@
-﻿using MemoryCache.Infra;
+﻿using MemoryCache.EvictionPolicies;
+using MemoryCache.Infra;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Reactive.Subjects;
@@ -62,12 +63,18 @@ namespace MemoryCache
 
         private readonly IOptions<DataStoreOptions> _options;
 
+        private readonly IEnumerable<IEvictionPolicy<TKey, TValue>> _evictionPolicies;
+
         private object _lock = new object();
 
-        public DataStore(ILogger<DataStore<TKey, TValue>> logger, IOptions<DataStoreOptions> options)
+        public DataStore(ILogger<DataStore<TKey, TValue>> logger,
+                         IOptions<DataStoreOptions> options,
+                         IEnumerable<IEvictionPolicy<TKey, TValue>> evictionPolicies
+                         )
         {
             this._logger = logger;
             this._options = options;
+            this._evictionPolicies = evictionPolicies;
         }
 
         /// <summary>
@@ -94,15 +101,14 @@ namespace MemoryCache
                 }
             }
         }
-        
 
-        public void Add(TKey key, TValue value)
+
+        public void AddUpdate(TKey key, TValue value)
         {
             lock (_lock)
             {
-                EvictIfNeeded();
-                RemoveExistingDataItem(key);
-                AddNewDataItem(key, value);
+                EvictIfNeeded();               
+                AddOrUpdate(key, value);
             }
         }
         public void Notify(TKey key, DataStoreEventType dataStoreEventType)
@@ -138,37 +144,32 @@ namespace MemoryCache
 
         }
 
-        public DataEnvolope<TKey, TValue>? LastUsed()
+        public DataEnvolope<TKey, TValue>? LeasUsed()
         {
-           return _dataLinkedList?.Last?.Value;
+            return _dataLinkedList?.Last?.Value;
         }
         private void EvictIfNeeded()
         {
-            while (_dataHashSet.Count >= _options.Value.Capacity)
+            if (_evictionPolicies.Any())
             {
-                var last = _dataLinkedList.Last;
-                if (last != null)
+                foreach (var policy in _evictionPolicies)
                 {
-                    _dataHashSet.Remove(last.Value);
-                    _dataLinkedList.RemoveLast();
-                    Notify(last.Value.keyValuePair.Key, DataStoreEventType.Evicted);
+                    policy.EvictIfNeeded(this);
                 }
             }
         }
 
-        private void RemoveExistingDataItem(TKey key)
+        private void AddOrUpdate(TKey key, TValue value)
         {
-            var dataItem = new DataEnvolope<TKey, TValue>(key, default);
+
+            var dataItem = new DataEnvolope<TKey, TValue>(key, value);
+
             if (_dataHashSet.Contains(dataItem))
             {
                 _dataHashSet.Remove(dataItem);
                 _dataLinkedList.Remove(dataItem);
             }
-        }
 
-        private void AddNewDataItem(TKey key, TValue value)
-        {
-            var dataItem = new DataEnvolope<TKey, TValue>(key, value);
             _dataHashSet.Add(dataItem);
             _dataLinkedList.AddFirst(dataItem);
         }
@@ -177,12 +178,12 @@ namespace MemoryCache
         {
             lock (_lock)
             {
-                var val =  this.Get(key);
-                var envolpe =  new DataEnvolope<TKey,TValue>(key, val);
+                var val = this.Get(key);
+                var envolpe = new DataEnvolope<TKey, TValue>(key, val);
                 _dataHashSet.Remove(envolpe);
-                _dataLinkedList.Remove(envolpe);                                                
+                _dataLinkedList.Remove(envolpe);
             }
-            
+
         }
     }
 
