@@ -1,14 +1,18 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using MemoryCache.Infra;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using System;
+using System.Collections.Generic;
+using System.Reactive.Subjects;
 
 namespace MemoryCache
 {
     /// <summary>
-    /// The cache should implement the ‘least recently used’ approach when selecting which item
-    //  to evict.
+    /// The cache should implement the ‘least recently used’ approach when selecting which item to evict.
     /// </summary>
-    public class DataStore<Key, Value> : IDataStore<Key, Value>
+    public sealed class DataStore<TKey, TValue> : IDataStore<TKey, TValue>
     {
+        //For Settings
         public class DataStoreOptions
         {
             /// <summary>
@@ -17,15 +21,51 @@ namespace MemoryCache
             public int Capacity { get; set; }
         }
 
-        private object _lock = new object();
+        // For event-driven
 
-        private readonly HashSet<DataEnvolope<Key, Value>> _dataHashSet = new HashSet<DataEnvolope<Key, Value>>();        
-        private readonly LinkedList<DataEnvolope<Key, Value>> _dataLinkedList =  new  LinkedList<DataEnvolope<Key, Value>>();
+        // private readonly Dictionary<TKey, Subject<DataStoreEvent<TKey>>> _dataItemsSubject = new Dictionary<TKey, Subject<DataStoreEvent<TKey>>>();
 
-        private readonly ILogger<DataStore<Key, Value>> _logger;
+        //private readonly HashSet<DataEnvolope<TKey, Subject<DataStoreEvent<TKey>>>> _dataItemsSubjectSet = new HashSet<DataEnvolope<TKey, Subject<DataStoreEvent<TKey>>>>();
+
+        private readonly Subject<DataStoreEvent<TKey>> _dataStoreSubject = new Subject<DataStoreEvent<TKey>>();
+
+        public IObservable<DataStoreEvent<TKey>> DataStoreEvents => _dataStoreSubject;
+
+
+        public IObservable<DataStoreEvent<TKey>> DataItemEvents(TKey key)
+        {
+            lock (_lock)
+            {
+                var dataItem = new DataItemObserver<TKey>(key);
+                DataItemObserver<TKey>? found;
+                if (_subscribersSet.TryGetValue(dataItem, out found))
+                {
+                    return found.DataStoreEvents;
+                }
+                else
+                {
+                    _subscribersSet.Add(dataItem);
+                    return dataItem.DataStoreEvents;
+                }
+            }
+        }
+
+
+        // For Data Storage
+        // TODO: It should be moved to a repo and the repos uses command and query separations. 
+        // It will decoulpe the component and the storage.
+        private readonly HashSet<DataEnvolope<TKey, TValue>> _dataHashSet = new HashSet<DataEnvolope<TKey, TValue>>();
+
+        private readonly HashSet<DataItemObserver<TKey>> _subscribersSet = new HashSet<DataItemObserver<TKey>>();
+
+        private readonly LinkedList<DataEnvolope<TKey, TValue>> _dataLinkedList = new LinkedList<DataEnvolope<TKey, TValue>>();
+
+        private readonly ILogger<DataStore<TKey, TValue>> _logger;
         private readonly IOptions<DataStoreOptions> _options;
 
-        public DataStore(ILogger<DataStore<Key, Value>> logger, IOptions<DataStoreOptions> options)
+        private object _lock = new object();
+
+        public DataStore(ILogger<DataStore<TKey, TValue>> logger, IOptions<DataStoreOptions> options)
         {
             this._logger = logger;
             this._options = options;
@@ -45,11 +85,11 @@ namespace MemoryCache
             }
         }
 
-        public void Add(Key key, Value value)
+        public void Add(TKey key, TValue value)
         {
             lock (_lock)
             {
-                var dataItem = new DataEnvolope<Key, Value>(key, value);
+                var dataItem = new DataEnvolope<TKey, TValue>(key, value);
 
                 Console.WriteLine($"key: {key} . Count:  {_dataHashSet.Count}");
 
@@ -60,19 +100,34 @@ namespace MemoryCache
                     {
                         _dataHashSet.Remove(last);
                         _dataLinkedList.Remove(last);
+
+                        //Event Notification
+                        Notify(last.keyValuePair.Key, DataStoreEventType.Evicted);
+                        
                     }
                 }
 
                 if (_dataHashSet.Contains(dataItem))
                 {
                     _dataHashSet.Remove(dataItem);
-                    _dataLinkedList.Remove(dataItem);                    
-                    
+                    _dataLinkedList.Remove(dataItem);
+
                 }
                 _dataHashSet.Add(dataItem);
                 _dataLinkedList.AddFirst(dataItem);
 
             }
+        }
+
+        protected void Notify(TKey key, DataStoreEventType dataStoreEventType)
+        {
+            _dataStoreSubject?.OnNext(new DataStoreEvent<TKey>(key, dataStoreEventType));
+            DataItemObserver<TKey>? found = new DataItemObserver<TKey>(key);
+            if (_subscribersSet.TryGetValue(found, out found))
+            {
+                found.NotifyChanged(dataStoreEventType);
+            }
+
         }
 
         /// <summary>
@@ -81,13 +136,13 @@ namespace MemoryCache
         /// </summary>
 
 
-        public Value? Get(Key key)
+        public TValue? Get(TKey key)
         {
             lock (_lock)
             {
-                Value? val= default(Value); ;
-                var dataItem = new DataEnvolope<Key, Value>(key, val);
-                DataEnvolope<Key, Value>? found;
+                TValue? val = default(TValue); ;
+                var dataItem = new DataEnvolope<TKey, TValue>(key, val);
+                DataEnvolope<TKey, TValue>? found;
                 if (_dataHashSet.TryGetValue(dataItem, out found))
                 {
                     _dataLinkedList.Remove(found);
@@ -96,7 +151,7 @@ namespace MemoryCache
                 }
                 return val;
             }
-            
+
         }
     }
 

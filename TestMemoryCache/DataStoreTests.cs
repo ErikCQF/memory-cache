@@ -1,21 +1,212 @@
 ﻿using MemoryCache;
+using MemoryCache.Infra;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace TestMemoryCache
 {
+
     public class DataStoreTests
     {
         private readonly Mock<ILogger<DataStore<string, object>>> loggerMock = new Mock<ILogger<DataStore<string, object>>>();
         private readonly Mock<IOptions<DataStore<string, object>.DataStoreOptions>> optionsMock = new Mock<IOptions<DataStore<string, object>.DataStoreOptions>>();
 
+        [Fact]
+        public void Subscribers_DataStore_Receive_Eviction_Events()
+        {
+            // Arrange
+            optionsMock.SetupGet(o => o.Value).Returns(new DataStore<string, object>.DataStoreOptions { Capacity = 2 });
+            var dataStore = new DataStore<string, object>(loggerMock.Object, optionsMock.Object);
 
+            var evictionEventReceived = false;
+            var keyoBeEvicted = "value1";
+
+            var evictionEventReceived_2 = false;
+            var keyoBeEvicted_2 = "value1";
+
+            var keyEvicted = string.Empty;
+
+            // Act
+            dataStore.DataStoreEvents.Subscribe(ev =>
+            {
+                if (ev.DataStoreEventType == DataStoreEventType.Evicted)
+                {
+                    evictionEventReceived = true;
+                    keyEvicted = ev.Key;
+                }
+            });
+            dataStore.DataStoreEvents.Subscribe(ev =>
+            {
+                if (ev.DataStoreEventType == DataStoreEventType.Evicted)
+                {
+                    evictionEventReceived_2 = true;
+                    keyoBeEvicted_2 = ev.Key;
+                }
+            });
+
+            dataStore.Add(keyoBeEvicted, keyoBeEvicted);
+
+            dataStore.Add("key2", "value2");
+            dataStore.Add("key3", "value3"); // This should trigger eviction
+
+            // Assert
+            Assert.True(evictionEventReceived); // a event has been triggered
+            Assert.True(evictionEventReceived_2); // a event has been triggered
+
+            Assert.Equal(keyoBeEvicted, keyEvicted);  // the evicted key from the event is the key of the data that has been evicketd
+            Assert.Equal(keyoBeEvicted_2, keyEvicted);  // the evicted key from the event is the key of the data that has been evicketd
+
+
+            Assert.True(dataStore.Get(keyoBeEvicted)==null); // This evicted item does not exists anymore in the cache;
+        }
+
+        [Fact]
+        public void Subscribers_To_DataItem_DataStore_Receive_Eviction_Events()
+        {
+            // Arrange
+            optionsMock.SetupGet(o => o.Value).Returns(new DataStore<string, object>.DataStoreOptions { Capacity = 2 });
+            var dataStore = new DataStore<string, object>(loggerMock.Object, optionsMock.Object);
+
+            var evictionEventReceived = false;
+            var keyoBeEvicted = "key1";
+
+            var evictionEventReceived_2 = false;
+            var keyoBeEvicted_2 = "key1";
+
+            var keyEvicted = string.Empty;
+
+
+            // Act
+            
+            dataStore.Add(keyoBeEvicted, keyoBeEvicted);
+            
+            dataStore.DataItemEvents(keyoBeEvicted)
+            .Subscribe(ev =>
+            {
+                if (ev.DataStoreEventType == DataStoreEventType.Evicted)
+                {
+                    evictionEventReceived = true;
+                    keyEvicted = ev.Key;
+                }
+            });
+
+            dataStore.DataItemEvents(keyoBeEvicted)
+            .Subscribe(ev =>
+            {
+                if (ev.DataStoreEventType == DataStoreEventType.Evicted)
+                {
+                    evictionEventReceived_2 = true;
+                    keyoBeEvicted_2 = ev.Key;
+                }
+            });
+
+            dataStore.Add("key2", "value2");
+            dataStore.Add("key3", "value3"); // This should trigger eviction
+
+            // Assert
+            Assert.True(evictionEventReceived); // a event has been triggered
+            Assert.True(evictionEventReceived_2); // a event has been triggered
+
+            Assert.Equal(keyoBeEvicted, keyEvicted);  // the evicted key from the event is the key of the data that has been evicketd
+            Assert.Equal(keyoBeEvicted_2, keyEvicted);  // the evicted key from the event is the key of the data that has been evicketd
+
+            Assert.True(dataStore.Get(keyoBeEvicted) == null); // This evicted item does not exists anymore in the cache;
+            Assert.True(dataStore.Get(keyoBeEvicted_2) == null); // This evicted item does not exists anymore in the cache;
+
+        }
+
+
+        [Fact]
+        public void Subscribers_To_DataItem_Before_It_has_been_Added_DataStore_Receive_Eviction_Events()
+        {
+            // Arrange
+            optionsMock.SetupGet(o => o.Value).Returns(new DataStore<string, object>.DataStoreOptions { Capacity = 2 });
+            var dataStore = new DataStore<string, object>(loggerMock.Object, optionsMock.Object);
+
+            var evictionEventReceived = false;
+            var keyoBeEvicted = "key1";
+
+            var evictionEventReceived_2 = false;
+            var keyoBeEvicted_2 = "key1";
+
+            var keyEvicted = string.Empty;
+
+            // Act
+           // this event has been subscribed before the item has been added to be evicted
+           // if the item has been evicted, must be called.
+            dataStore.DataItemEvents(keyoBeEvicted)
+            .Subscribe(ev =>
+            {
+                if (ev.DataStoreEventType == DataStoreEventType.Evicted)
+                {
+                    evictionEventReceived = true;
+                    keyEvicted = ev.Key;
+                }
+            });
+
+
+            dataStore.Add(keyoBeEvicted, keyoBeEvicted);
+
+            dataStore.DataItemEvents(keyoBeEvicted)
+            .Subscribe(ev =>
+            {
+                if (ev.DataStoreEventType == DataStoreEventType.Evicted)
+                {
+                    evictionEventReceived_2 = true;
+                    keyoBeEvicted_2 = ev.Key;
+                }
+            });
+
+            dataStore.Add("key2", "value2");
+            dataStore.Add("key3", "value3"); // This should trigger eviction
+
+            // Assert
+            Assert.True(evictionEventReceived); // a event has been triggered
+            Assert.True(evictionEventReceived_2); // a event has been triggered
+
+            Assert.Equal(keyoBeEvicted, keyEvicted);  // the evicted key from the event is the key of the data that has been evicketd
+            Assert.Equal(keyoBeEvicted_2, keyEvicted);  // the evicted key from the event is the key of the data that has been evicketd
+
+            Assert.True(dataStore.Get(keyoBeEvicted) == null); // This evicted item does not exists anymore in the cache;
+            Assert.True(dataStore.Get(keyoBeEvicted_2) == null); // This evicted item does not exists anymore in the cache;
+
+        }
+
+        [Theory]
+        [InlineData(10, 100)]
+        public void Add_Same_Key_ShouldBe_ThreadSafe(int capacity, int numThreads)
+        {
+            //Arrange
+            optionsMock.SetupGet(o => o.Value).Returns(new DataStore<string, object>.DataStoreOptions { Capacity = capacity });
+            var dataStore = new DataStore<string, object>(loggerMock.Object, optionsMock.Object);
+            var tasks = new Task[numThreads];
+
+
+            // Acct
+            // Concurrently add items
+            for (int i = 0; i < numThreads; i++)
+            {
+                tasks[i] = Task.Run(() =>
+                {
+                    dataStore.Add("Same Key", "Same Value");
+
+                });
+            }
+
+            Task.WaitAll(tasks);
+
+
+            //Assert
+            //Must have only a key
+            Assert.Equal(1, dataStore.Count);
+        }
 
         [Theory]
         [InlineData(10, 11, 1)]
@@ -24,7 +215,7 @@ namespace TestMemoryCache
         [InlineData(10, 10, 2)]
         [InlineData(10, 100, 100)]
         [InlineData(10, 100, 1000)]
-        public void Add_Should_Be_Thread_Safe(int capacity, int numItemsPerThread, int numThreads )
+        public void Add_Should_Be_Thread_Safe(int capacity, int numItemsPerThread, int numThreads)
         {
             //Arrange
             optionsMock.SetupGet(o => o.Value).Returns(new DataStore<string, object>.DataStoreOptions { Capacity = capacity });
@@ -39,7 +230,7 @@ namespace TestMemoryCache
                 {
                     int ii = i;
                     for (int j = 0; j < numItemsPerThread; j++)
-                    {                     
+                    {
                         dataStore.Add(Guid.NewGuid().ToString(), ii * numItemsPerThread + j);
 
                     }
@@ -47,7 +238,7 @@ namespace TestMemoryCache
             }
 
             Task.WaitAll(tasks);
-            
+
 
             //Assert
             //Must respect the capacity
@@ -55,7 +246,7 @@ namespace TestMemoryCache
 
         }
 
-        
+
         //[Theory]
         //[InlineData(10, 11, 1)]
         //[InlineData(10, 11, 2)]
@@ -117,7 +308,7 @@ namespace TestMemoryCache
         public void Add_Should_Evict_Least_Recently_ADDED_Item_When_Capacity_Is_Exceeded()
         {
             // Arrange
-            
+
             optionsMock.SetupGet(o => o.Value).Returns(new DataStore<string, object>.DataStoreOptions { Capacity = 2 });
 
             var dataStore = new DataStore<string, object>(loggerMock.Object, optionsMock.Object);
@@ -138,7 +329,7 @@ namespace TestMemoryCache
         public void Add_Should_Evict_Least_Recently_USED_Item_When_Capacity_Is_Exceeded()
         {
             // Arrange
-            
+
             optionsMock.SetupGet(o => o.Value).Returns(new DataStore<string, object>.DataStoreOptions { Capacity = 3 });
 
             var dataStore = new DataStore<string, object>(loggerMock.Object, optionsMock.Object);

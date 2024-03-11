@@ -1,4 +1,4 @@
-﻿namespace MemoryCache;
+﻿namespace MemoryCache.Infra;
 
 public class InMemoryCacheOptions
 {
