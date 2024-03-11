@@ -1,7 +1,4 @@
-﻿using System.Collections.Generic;
-using System.Reactive.Subjects;
-
-namespace MemoryCache.Infra
+﻿namespace MemoryCache.Infra
 {
     /// <summary>
     /// This class will be used to envolep the caching value. It can have metadate such as creation date, eviction priority 

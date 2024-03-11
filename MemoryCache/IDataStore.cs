@@ -1,12 +1,15 @@
-﻿using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
+﻿using MemoryCache.Infra;
 
 namespace MemoryCache
 {
-    public interface IDataStore<Key, Value>
-    {        
-        void Add(Key key, Value value);
-        Value? Get(Key key);             
+    public interface IDataStore<TKey, TValue>
+    {
+        int Count { get; }
+        int Capacity { get; }
+
+        void Add(TKey key, TValue value);
+        TValue? Get(TKey key);
+        DataEnvolope<TKey, TValue>? LastUsed();
+        void Remove(TKey key);
     }
 }

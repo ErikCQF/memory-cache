@@ -3,12 +3,6 @@ using MemoryCache.Infra;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
-using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace TestMemoryCache
 {
@@ -64,7 +58,7 @@ namespace TestMemoryCache
             Assert.Equal(keyoBeEvicted_2, keyEvicted);  // the evicted key from the event is the key of the data that has been evicketd
 
 
-            Assert.True(dataStore.Get(keyoBeEvicted)==null); // This evicted item does not exists anymore in the cache;
+            Assert.True(dataStore.Get(keyoBeEvicted) == null); // This evicted item does not exists anymore in the cache;
         }
 
         [Fact]
@@ -84,9 +78,9 @@ namespace TestMemoryCache
 
 
             // Act
-            
+
             dataStore.Add(keyoBeEvicted, keyoBeEvicted);
-            
+
             dataStore.DataItemEvents(keyoBeEvicted)
             .Subscribe(ev =>
             {
@@ -139,8 +133,8 @@ namespace TestMemoryCache
             var keyEvicted = string.Empty;
 
             // Act
-           // this event has been subscribed before the item has been added to be evicted
-           // if the item has been evicted, must be called.
+            // this event has been subscribed before the item has been added to be evicted
+            // if the item has been evicted, must be called.
             dataStore.DataItemEvents(keyoBeEvicted)
             .Subscribe(ev =>
             {

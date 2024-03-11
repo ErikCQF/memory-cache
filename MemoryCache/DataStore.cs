@@ -1,8 +1,6 @@
 ﻿using MemoryCache.Infra;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using System;
-using System.Collections.Generic;
 using System.Reactive.Subjects;
 
 namespace MemoryCache
@@ -61,6 +59,7 @@ namespace MemoryCache
         private readonly LinkedList<DataEnvolope<TKey, TValue>> _dataLinkedList = new LinkedList<DataEnvolope<TKey, TValue>>();
 
         private readonly ILogger<DataStore<TKey, TValue>> _logger;
+
         private readonly IOptions<DataStoreOptions> _options;
 
         private object _lock = new object();
@@ -85,41 +84,28 @@ namespace MemoryCache
             }
         }
 
+        public int Capacity
+        {
+            get
+            {
+                lock (_lock)
+                {
+                    return _options.Value.Capacity;
+                }
+            }
+        }
+        
+
         public void Add(TKey key, TValue value)
         {
             lock (_lock)
             {
-                var dataItem = new DataEnvolope<TKey, TValue>(key, value);
-
-                Console.WriteLine($"key: {key} . Count:  {_dataHashSet.Count}");
-
-                while (_dataHashSet.Count >= _options.Value.Capacity)
-                {
-                    var last = _dataLinkedList.Last();
-                    if (last != null)
-                    {
-                        _dataHashSet.Remove(last);
-                        _dataLinkedList.Remove(last);
-
-                        //Event Notification
-                        Notify(last.keyValuePair.Key, DataStoreEventType.Evicted);
-                        
-                    }
-                }
-
-                if (_dataHashSet.Contains(dataItem))
-                {
-                    _dataHashSet.Remove(dataItem);
-                    _dataLinkedList.Remove(dataItem);
-
-                }
-                _dataHashSet.Add(dataItem);
-                _dataLinkedList.AddFirst(dataItem);
-
+                EvictIfNeeded();
+                RemoveExistingDataItem(key);
+                AddNewDataItem(key, value);
             }
         }
-
-        protected void Notify(TKey key, DataStoreEventType dataStoreEventType)
+        public void Notify(TKey key, DataStoreEventType dataStoreEventType)
         {
             _dataStoreSubject?.OnNext(new DataStoreEvent<TKey>(key, dataStoreEventType));
             DataItemObserver<TKey>? found = new DataItemObserver<TKey>(key);
@@ -134,13 +120,11 @@ namespace MemoryCache
         /// The cache should implement the ‘least recently used’ approach when selecting which item to evict.
         /// It means that if the item is read, it left the last position of the quue and it goes to the head of the queuye
         /// </summary>
-
-
         public TValue? Get(TKey key)
         {
             lock (_lock)
             {
-                TValue? val = default(TValue); ;
+                TValue? val = default; ;
                 var dataItem = new DataEnvolope<TKey, TValue>(key, val);
                 DataEnvolope<TKey, TValue>? found;
                 if (_dataHashSet.TryGetValue(dataItem, out found))
@@ -152,6 +136,53 @@ namespace MemoryCache
                 return val;
             }
 
+        }
+
+        public DataEnvolope<TKey, TValue>? LastUsed()
+        {
+           return _dataLinkedList?.Last?.Value;
+        }
+        private void EvictIfNeeded()
+        {
+            while (_dataHashSet.Count >= _options.Value.Capacity)
+            {
+                var last = _dataLinkedList.Last;
+                if (last != null)
+                {
+                    _dataHashSet.Remove(last.Value);
+                    _dataLinkedList.RemoveLast();
+                    Notify(last.Value.keyValuePair.Key, DataStoreEventType.Evicted);
+                }
+            }
+        }
+
+        private void RemoveExistingDataItem(TKey key)
+        {
+            var dataItem = new DataEnvolope<TKey, TValue>(key, default);
+            if (_dataHashSet.Contains(dataItem))
+            {
+                _dataHashSet.Remove(dataItem);
+                _dataLinkedList.Remove(dataItem);
+            }
+        }
+
+        private void AddNewDataItem(TKey key, TValue value)
+        {
+            var dataItem = new DataEnvolope<TKey, TValue>(key, value);
+            _dataHashSet.Add(dataItem);
+            _dataLinkedList.AddFirst(dataItem);
+        }
+
+        public void Remove(TKey key)
+        {
+            lock (_lock)
+            {
+                var val =  this.Get(key);
+                var envolpe =  new DataEnvolope<TKey,TValue>(key, val);
+                _dataHashSet.Remove(envolpe);
+                _dataLinkedList.Remove(envolpe);                                                
+            }
+            
         }
     }
 
