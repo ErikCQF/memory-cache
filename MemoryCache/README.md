@@ -1,4 +1,4 @@
-# Functional requirements for this Memory Component
+# Functional requirements for Generic Memory Component
 
 ## Mandatory:
 
