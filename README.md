@@ -21,4 +21,6 @@
 ## Refactory: [TODO]
 
 - It is a test version focused on delivering all functionalities requested. The refactoring is desirable for `DataStoreBridge<TKey, TValue>`. This interface is not following the single responsibility principle, so it needs to be broken down.
+- Thread Safe. It is using a lock approach. Apply non locking design patterns when applyable.
 - Regarding `DataStoreBridge` implementation, it depends on 2 `HashSet` and a linked list to implement the 'least recently used' approach for evictions. My suggestion is to decouple it using a CQRS approach, thereby decoupling queries and commands.
+
