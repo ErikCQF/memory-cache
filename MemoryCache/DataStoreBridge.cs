@@ -20,12 +20,9 @@ namespace MemoryCache
             public int Capacity { get; set; }
         }
 
+        
+
         // For event-driven
-
-        // private readonly Dictionary<TKey, Subject<DataStoreEvent<TKey>>> _dataItemsSubject = new Dictionary<TKey, Subject<DataStoreEvent<TKey>>>();
-
-        //private readonly HashSet<DataEnvolope<TKey, Subject<DataStoreEvent<TKey>>>> _dataItemsSubjectSet = new HashSet<DataEnvolope<TKey, Subject<DataStoreEvent<TKey>>>>();
-
         private readonly Subject<DataStoreEvent<TKey>> _dataStoreSubject = new Subject<DataStoreEvent<TKey>>();
 
         public IObservable<DataStoreEvent<TKey>> DataStoreEvents => _dataStoreSubject;
@@ -53,28 +50,29 @@ namespace MemoryCache
         // For Data Storage
         // TODO: It should be moved to a repo and the repos uses command and query separations. 
         // It will decoulpe the component and the storage.
-        private readonly HashSet<DataEnvolope<TKey, TValue>> _dataHashSet = new HashSet<DataEnvolope<TKey, TValue>>();
-
         private readonly HashSet<DataItemObserver<TKey>> _subscribersSet = new HashSet<DataItemObserver<TKey>>();
-
-        private readonly LinkedList<DataEnvolope<TKey, TValue>> _dataLinkedList = new LinkedList<DataEnvolope<TKey, TValue>>();
+        
 
         private readonly ILogger<DataStoreBridge<TKey, TValue>> _logger;
 
         private readonly IOptions<DataStoreOptions> _options;
 
         private readonly IEnumerable<IEvictionPolicy<TKey, TValue>> _evictionPolicies;
+        
+        private readonly IDataStorage<TKey, TValue> _dataStorage;
 
         private object _lock = new object();
 
         public DataStoreBridge(ILogger<DataStoreBridge<TKey, TValue>> logger,
                          IOptions<DataStoreOptions> options,
-                         IEnumerable<IEvictionPolicy<TKey, TValue>> evictionPolicies
+                         IEnumerable<IEvictionPolicy<TKey, TValue>> evictionPolicies,
+                         IDataStorage<TKey, TValue> dataStorage
                          )
         {
             this._logger = logger;
             this._options = options;
             this._evictionPolicies = evictionPolicies;
+            this._dataStorage = dataStorage;
         }
 
         /// <summary>
@@ -86,7 +84,7 @@ namespace MemoryCache
             {
                 lock (_lock)
                 {
-                    return _dataHashSet.Count;
+                    return _dataStorage.Count;
                 }
             }
         }
@@ -129,24 +127,15 @@ namespace MemoryCache
         public TValue? Get(TKey key)
         {
             lock (_lock)
-            {
-                TValue? val = default; ;
-                var dataItem = new DataEnvolope<TKey, TValue>(key, val);
-                DataEnvolope<TKey, TValue>? found;
-                if (_dataHashSet.TryGetValue(dataItem, out found))
-                {
-                    _dataLinkedList.Remove(found);
-                    _dataLinkedList.AddFirst(found);
-                    return found.keyValuePair.Value;
-                }
-                return val;
+            {                
+               return _dataStorage.Get(key);                
             }
 
         }
 
         public DataEnvolope<TKey, TValue>? LeasUsed()
         {
-            return _dataLinkedList?.Last?.Value;
+            return _dataStorage.LeasUsed();
         }
         private void EvictIfNeeded()
         {
@@ -161,29 +150,12 @@ namespace MemoryCache
 
         private void AddOrUpdate(TKey key, TValue value)
         {
-
-            var dataItem = new DataEnvolope<TKey, TValue>(key, value);
-
-            if (_dataHashSet.Contains(dataItem))
-            {
-                _dataHashSet.Remove(dataItem);
-                _dataLinkedList.Remove(dataItem);
-            }
-
-            _dataHashSet.Add(dataItem);
-            _dataLinkedList.AddFirst(dataItem);
+            _dataStorage.AddOrUpdate(key, value);            
         }
 
         public void Remove(TKey key)
         {
-            lock (_lock)
-            {
-                var val = this.Get(key);
-                var envolpe = new DataEnvolope<TKey, TValue>(key, val);
-                _dataHashSet.Remove(envolpe);
-                _dataLinkedList.Remove(envolpe);
-            }
-
+            _dataStorage.Remove(key);            
         }
     }
 
