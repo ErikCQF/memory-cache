@@ -28,7 +28,7 @@ namespace TestMemoryCache
 
             int capacity = 3;
 
-            var dataStoreMock = new Mock<IDataStore<int, string>>();
+            var dataStoreMock = new Mock<IDataStoreBridge<int, string>>();
 
             dataStoreMock.SetupGet(d => d.Capacity).Returns(capacity);
             dataStoreMock.Setup(d => d.Count).Returns(() => countItem);

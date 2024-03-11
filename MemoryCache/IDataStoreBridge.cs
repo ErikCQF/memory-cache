@@ -2,7 +2,7 @@
 
 namespace MemoryCache
 {
-    public interface IDataStore<TKey, TValue>
+    public interface IDataStoreBridge<TKey, TValue>
     {
         int Count { get; }
         int Capacity { get; }

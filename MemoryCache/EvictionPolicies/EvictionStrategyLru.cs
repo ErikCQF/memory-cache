@@ -4,7 +4,7 @@ namespace MemoryCache.EvictionPolicies
 {
     public class EvictionStrategyLru<TKey, TValue> : IEvictionPolicy<TKey, TValue>
     {
-        public void EvictIfNeeded(IDataStore<TKey, TValue> dataStore)
+        public void EvictIfNeeded(IDataStoreBridge<TKey, TValue> dataStore)
         {
             while (dataStore.Count >= dataStore.Capacity)
             {

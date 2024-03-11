@@ -9,7 +9,7 @@ namespace MemoryCache
     /// <summary>
     /// The cache should implement the ‘least recently used’ approach when selecting which item to evict.
     /// </summary>
-    public sealed class DataStore<TKey, TValue> : IDataStore<TKey, TValue>
+    public sealed class DataStoreBridge<TKey, TValue> : IDataStoreBridge<TKey, TValue>
     {
         //For Settings
         public class DataStoreOptions
@@ -59,7 +59,7 @@ namespace MemoryCache
 
         private readonly LinkedList<DataEnvolope<TKey, TValue>> _dataLinkedList = new LinkedList<DataEnvolope<TKey, TValue>>();
 
-        private readonly ILogger<DataStore<TKey, TValue>> _logger;
+        private readonly ILogger<DataStoreBridge<TKey, TValue>> _logger;
 
         private readonly IOptions<DataStoreOptions> _options;
 
@@ -67,7 +67,7 @@ namespace MemoryCache
 
         private object _lock = new object();
 
-        public DataStore(ILogger<DataStore<TKey, TValue>> logger,
+        public DataStoreBridge(ILogger<DataStoreBridge<TKey, TValue>> logger,
                          IOptions<DataStoreOptions> options,
                          IEnumerable<IEvictionPolicy<TKey, TValue>> evictionPolicies
                          )

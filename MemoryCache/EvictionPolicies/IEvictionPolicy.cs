@@ -2,6 +2,6 @@
 {
     public interface IEvictionPolicy<TKey, TValue>
     {
-        void EvictIfNeeded(IDataStore<TKey, TValue> dataStore);
+        void EvictIfNeeded(IDataStoreBridge<TKey, TValue> dataStore);
     }
 }
