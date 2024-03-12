@@ -17,8 +17,8 @@ namespace TestMemoryCache
         private List<IEvictionPolicy<string, object>> _evictionPolices = new List<IEvictionPolicy<string, object>>();
 
         [Theory]
-        [InlineData(10,10, 11, 1)]
-        [InlineData(10,10, 11, 2)]        
+        [InlineData(10,5, 11, 1)]
+        [InlineData(10,5, 11, 2)]        
         [InlineData(10,10, 1000, 1000)]        
 
         public void Capacity_is_Changed_Must_Be_Thread_Safe(int capacity, int capacityNew, int numItemsPerThread, int numThreads)
@@ -71,9 +71,12 @@ namespace TestMemoryCache
                 });
             }
 
+            Task.WaitAll(tasks);
+
 
             //Assert
             //Must respect the capacity
+
             Assert.Equal(capacityNew, dataStore.Capacity);            
             Assert.Equal(capacityNew, dataStore.Count);
 
