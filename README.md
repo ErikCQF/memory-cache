@@ -1,4 +1,4 @@
-# Functional requirements for Generic Memory Component
+# Functional requirements for A Generic Memory Component
 
 ## Mandatory:
 
@@ -13,16 +13,22 @@
 
 ## Architecture
 
-- `DataStoreBridge<TKey, TValue>` implements `IDataStoreBridge<TKey, TValue>`.
-- `DataStoreBridge<TKey, TValue>` depends on "n" `IEvictionPolicy<TKey, TValue>`.
+- `MemoryCache<TKey, TValue>` implements `MemoryCache<TKey, TValue>`.
+- `MemoryCache<TKey, TValue>` depends on "n" `IEvictionPolicy<TKey, TValue>`.
+    The Eviction Algoritm has been decoupled from MemoryCache.
+    1 to N implementations of Evictions algorithms can be added.The one that is implemented is Leat recent used.
+    IEvictionPolicy<TKey, TValue> is decoupled from the Data Structure for storing date,so adhering to Solid principles
+- `MemoryCache<TKey, TValue>` depends on "n" `IDataStorage<TKey, TValue>`
+   Data storing is decoupled from Memory cache. I uses a implementation of `IDataStorage<TKey, TValue>`
 - `DataEnvolope<TKey, TValue>` is used to encapsulate `TValue`. It implements `IEquatable`, so a generic `TKEY` can be used for indexing. Another important point is that this approach makes it easier for Extensions.
 - `DataItemObserver<TKey>` is used for Reactive Programming to notify evictions. It is also ready to notify other events such as updates; the event message can be extended to carry new information as well, such as delta in updates.
 
-## Refactory: [TODO]
+## Review and Refactory: [TODO]
 
-- It is a test version focused on delivering all functionalities requested. The refactoring is desirable for `DataStoreBridge<TKey, TValue>`. This interface is not following the single responsibility principle, so it needs to be broken down.
-- *Thread Safe*. It is using a lock approach. Apply non locking design patterns when it is possible. Locks are easy to implement, so a good initial approach as prove of concept.
-- Regarding `DataStoreBridge` implementation. It need to decouple the DataStorage, ideally applying a CQRS approach. A approach thereby is by decoupling queries and commands that will be handled by a Mediator, so cache storage can be fully decoupled from the implementation
+- At first view there is so many responsiblities to MemoryCache. Apply CQRS for data command and query. 
+- *Thread Safe*. It is using a lock approach. Apply non locking design patterns when it is possible.
+- Regarding `MemoryCache` implementation. It need to decouple the DataStorage [&#x2705; done]
+- Review Events
 
 ## Instantiate and Using Memory Cache
 ```
