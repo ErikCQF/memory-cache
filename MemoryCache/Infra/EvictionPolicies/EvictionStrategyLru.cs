@@ -1,5 +1,4 @@
 ﻿using MemoryCache.Infra.Events;
-
 namespace MemoryCache.Infra.EvictionPolicies
 {
     public class EvictionStrategyLru<TKey, TValue> : IEvictionPolicy<TKey, TValue>

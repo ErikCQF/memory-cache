@@ -3,26 +3,31 @@ using MemoryCache.Infra.EvictionPolicies;
 using MemoryCache.Infra.Storages;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using System;
+using System.Collections.Generic;
 using System.Reactive.Subjects;
+using System.Linq;
 
 namespace MemoryCache
 {
     /// <summary>
-    /// The cache should implement the ‘least recently used’ approach when selecting which item to evict.
+    /// The cache should implement the 'least recently used' approach when selecting which item to evict.
     /// </summary>
     public sealed class MemoryCache<TKey, TValue> : IMemoryCache<TKey, TValue>
     {
         // Events
         private readonly Subject<DataStoreEvent<TKey>> _dataStoreSubject = new Subject<DataStoreEvent<TKey>>();
         private readonly HashSet<DataItemObserver<TKey>> _subscribersSet = new HashSet<DataItemObserver<TKey>>();
+        private readonly object _lock = new object();
+
         public IObservable<DataStoreEvent<TKey>> DataStoreEvents => _dataStoreSubject;
+
         public IObservable<DataStoreEvent<TKey>> DataItemEvents(TKey key)
         {
             lock (_lock)
             {
                 var dataItem = new DataItemObserver<TKey>(key);
-                DataItemObserver<TKey>? found;
-                if (_subscribersSet.TryGetValue(dataItem, out found))
+                if (_subscribersSet.TryGetValue(dataItem, out var found))
                 {
                     return found.DataStoreEvents;
                 }
@@ -34,50 +39,41 @@ namespace MemoryCache
             }
         }
 
-        // Evictions Polices
+        // Evictions Policies
         private readonly IEnumerable<IEvictionPolicy<TKey, TValue>> _evictionPolicies;
 
         // Data Storage
         private readonly IDataStorage<TKey, TValue> _dataStorage;
 
-        //Settings, logs and others
+        // Settings, Logs, and Others
         private readonly ILogger<MemoryCache<TKey, TValue>> _logger;
-
         private readonly IOptions<MemoryCacheOptions> _options;
 
-        private object _lock = new object();
-
-        public MemoryCache(ILogger<MemoryCache<TKey, TValue>> logger,
-                         IOptions<MemoryCacheOptions> options,
-                         IEnumerable<IEvictionPolicy<TKey, TValue>> evictionPolicies,
-                         IDataStorage<TKey, TValue> dataStorage
-                         )
+        public MemoryCache(
+            ILogger<MemoryCache<TKey, TValue>> logger,
+            IOptions<MemoryCacheOptions> options,
+            IEnumerable<IEvictionPolicy<TKey, TValue>> evictionPolicies,
+            IDataStorage<TKey, TValue> dataStorage)
         {
-            this._logger = logger;
-            this._options = options;
-            this._evictionPolicies = evictionPolicies;
-            this._dataStorage = dataStorage;
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _options = options ?? throw new ArgumentNullException(nameof(options));
+            _evictionPolicies = evictionPolicies ?? throw new ArgumentNullException(nameof(evictionPolicies));
+            _dataStorage = dataStorage ?? throw new ArgumentNullException(nameof(dataStorage));
         }
 
         /// <summary>
-        ///  need be thread safe
+        ///  Thread-safe property to get the count of items in the cache.
         /// </summary>
-        public int Count
-        {
-            get
-            {
-                return _dataStorage.Count;
-            }
-        }
+        public int Count => _dataStorage.Count;
 
-        public int Capacity
-        {
-            get
-            {
-                return _options.Value.Capacity;
-            }
-        }
+        /// <summary>
+        /// Thread-safe property to get the capacity of the cache.
+        /// </summary>
+        public int Capacity => _options.Value.Capacity;
 
+        /// <summary>
+        /// Adds or updates an item in the cache.
+        /// </summary>
         public void AddUpdate(TKey key, TValue value)
         {
             lock (_lock)
@@ -86,43 +82,46 @@ namespace MemoryCache
                 AddOrUpdate(key, value);
             }
         }
+
+        /// <summary>
+        /// Notifies subscribers about a data store event.
+        /// </summary>
         public void Notify(TKey key, DataStoreEventType dataStoreEventType)
         {
             _dataStoreSubject?.OnNext(new DataStoreEvent<TKey>(key, dataStoreEventType));
-            DataItemObserver<TKey>? found = new DataItemObserver<TKey>(key);
-            if (_subscribersSet.TryGetValue(found, out found))
+            var found = new DataItemObserver<TKey>(key);
+            if (_subscribersSet.TryGetValue(found, out var subscriber))
             {
-                found.NotifyChanged(dataStoreEventType);
+                subscriber.NotifyChanged(dataStoreEventType);
             }
         }
 
         /// <summary>
-        /// The cache should implement the ‘least recently used’ approach when selecting which item to evict.
-        /// It means that if the item is read, it left the last position of the quue and it goes to the head of the queuye
+        /// Retrieves an item from the cache.
         /// </summary>
-        public TValue? Get(TKey key)
-        {
-            return _dataStorage.Get(key);
-        }
+        public TValue? Get(TKey key) => _dataStorage.Get(key);
 
-        public KeyValuePair<TKey, TValue>? LeasUsed()
-        {
-            return _dataStorage.LeasUsed();
-        }
-        public void Remove(TKey key)
-        {
-            _dataStorage.Remove(key);
-        }
+        /// <summary>
+        /// Retrieves the least used item from the cache.
+        /// </summary>
+        public KeyValuePair<TKey, TValue?>? LeasUsed() => _dataStorage?.LeasUsed();
 
+        /// <summary>
+        /// Removes an item from the cache.
+        /// </summary>
+        public void Remove(TKey key) => _dataStorage.Remove(key);
+
+        /// <summary>
+        /// Sets the capacity of the cache.
+        /// </summary>
         public void SetCapacity(int capacity)
         {
-            // int this case, to nothing. better the trigger and excpetion that has not been handled
             if (capacity <= 0)
             {
-                return;
+                throw new ArgumentOutOfRangeException(nameof(capacity), "Capacity must be greater than zero.");
             }
 
-            this._options.Value.Capacity = capacity;
+            _options.Value.Capacity = capacity;
         }
 
         private void EvictIfNeeded()

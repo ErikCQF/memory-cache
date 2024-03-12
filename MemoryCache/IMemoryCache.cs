@@ -9,7 +9,7 @@ namespace MemoryCache
         void SetCapacity(int capacity);
         void AddUpdate(TKey key, TValue value);
         TValue? Get(TKey key);
-        KeyValuePair<TKey, TValue>? LeasUsed();
+        KeyValuePair<TKey, TValue?>? LeasUsed();
         void Notify(TKey key, DataStoreEventType dataStoreEventType);
         void Remove(TKey key);
     }

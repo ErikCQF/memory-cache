@@ -6,25 +6,25 @@ namespace MemoryCache.Infra.Storages
     {
         private readonly HashSet<DataEnvolope<TKey, TValue>> _dataHashSet = new HashSet<DataEnvolope<TKey, TValue>>();
         private readonly LinkedList<DataEnvolope<TKey, TValue>> _dataLinkedList = new LinkedList<DataEnvolope<TKey, TValue>>();
-        private object _lock = new object();
+        private readonly object _lock = new object();
 
         public TValue? Get(TKey key)
         {
             lock (_lock)
             {
-                TValue? val = default; ;
+                TValue? val = default;
                 var dataItem = new DataEnvolope<TKey, TValue>(key, val);
                 DataEnvolope<TKey, TValue>? found;
                 if (_dataHashSet.TryGetValue(dataItem, out found))
                 {
                     _dataLinkedList.Remove(found);
                     _dataLinkedList.AddFirst(found);
-                    return found.keyValuePair.Value;
+                    return found.KeyValuePair.Value;
                 }
                 return val;
             }
-
         }
+
         public int Count
         {
             get
@@ -43,8 +43,8 @@ namespace MemoryCache.Infra.Storages
                 var dataItem = new DataEnvolope<TKey, TValue>(key, default);
                 return _dataHashSet.Contains(dataItem);
             }
-
         }
+
         public void AddOrUpdate(TKey key, TValue value)
         {
             lock (_lock)
@@ -61,21 +61,23 @@ namespace MemoryCache.Infra.Storages
                 _dataLinkedList.AddFirst(dataItem);
             }
         }
+
         public void Remove(TKey key)
         {
             lock (_lock)
             {
                 var val = Get(key);
-                var envolpe = new DataEnvolope<TKey, TValue>(key, val);
-                _dataHashSet.Remove(envolpe);
-                _dataLinkedList.Remove(envolpe);
+                var envelope = new DataEnvolope<TKey, TValue>(key, val);
+                _dataHashSet.Remove(envelope);
+                _dataLinkedList.Remove(envelope);
             }
         }
+
         public KeyValuePair<TKey, TValue?>? LeasUsed()
         {
             lock (_lock)
             {
-                return _dataLinkedList?.Last?.Value?.keyValuePair;
+                return _dataLinkedList?.Last?.Value?.KeyValuePair;
             }
         }
     }

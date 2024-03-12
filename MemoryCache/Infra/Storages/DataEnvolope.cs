@@ -1,43 +1,48 @@
-﻿namespace MemoryCache.Infra.Storages
+﻿using System;
+using System.Collections.Generic;
+
+namespace MemoryCache.Infra.Storages
 {
     /// <summary>
-    /// This class will be used to envolep the caching value. It can have metadate such as creation date, eviction priority 
-    /// There is a functional needs of data eviction. 
+    /// This class represents an envelope for caching values, with optional metadata such as creation date and eviction priority.
     /// </summary>
     internal class DataEnvolope<TKey, TValue> : IEquatable<DataEnvolope<TKey, TValue>>
     {
-        public readonly KeyValuePair<TKey, TValue?> keyValuePair;
+        public readonly KeyValuePair<TKey, TValue?> KeyValuePair;
+
         public DataEnvolope(TKey key, TValue? value)
         {
-
             if (key == null)
             {
-                throw new ArgumentException("Key must be a non-null.", nameof(keyValuePair));
+                throw new ArgumentException("Key must not be null.", nameof(KeyValuePair));
             }
 
-            keyValuePair = new KeyValuePair<TKey, TValue?>(key, value);
+            KeyValuePair = new KeyValuePair<TKey, TValue?>(key, value);
         }
+
         public bool Equals(DataEnvolope<TKey, TValue>? other)
         {
-            if (other == null || other.keyValuePair.Key == null)
+            if (other == null || other.KeyValuePair.Key == null)
             {
                 return false;
             }
 
-            if (keyValuePair.Key == null)
+            if (KeyValuePair.Key == null)
             {
                 return false;
             }
 
-            return keyValuePair.Key.Equals(other.keyValuePair.Key);
+            return KeyValuePair.Key.Equals(other.KeyValuePair.Key);
         }
+
         public override int GetHashCode()
         {
-            if (keyValuePair.Key == null)
+            if (KeyValuePair.Key == null)
             {
-                throw new ArgumentNullException($"{nameof(keyValuePair)} . Key is null. must be a valid value to be used as a key");
+                throw new ArgumentNullException($"{nameof(KeyValuePair)}. Key is null, and it must be a valid value to be used as a key.");
             }
-            return keyValuePair.Key.GetHashCode();
+
+            return KeyValuePair.Key.GetHashCode();
         }
     }
 }

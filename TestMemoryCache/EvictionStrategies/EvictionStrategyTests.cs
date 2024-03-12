@@ -4,8 +4,10 @@ using MemoryCache.Infra.EvictionPolicies;
 using Moq;
 
 
-namespace TestMemoryCache
+namespace TestMemoryCache.EvictionStrategies
 {
+    [Trait("Category", "Eviction Strategy")]
+
     public class EvictionStrategyTests
     {
         /// <summary>
