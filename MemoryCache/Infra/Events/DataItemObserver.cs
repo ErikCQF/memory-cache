@@ -2,7 +2,7 @@
 
 namespace MemoryCache.Infra.Events
 {
-    public class DataItemObserver<TKey> : IEquatable<DataItemObserver<TKey>>
+    internal class DataItemObserver<TKey> : IEquatable<DataItemObserver<TKey>>
     {
         private readonly TKey _key;
         public DataItemObserver(TKey key)

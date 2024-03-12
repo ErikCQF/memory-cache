@@ -4,7 +4,7 @@
     /// This class will be used to envolep the caching value. It can have metadate such as creation date, eviction priority 
     /// There is a functional needs of data eviction. 
     /// </summary>
-    public class DataEnvolope<TKey, TValue> : IEquatable<DataEnvolope<TKey, TValue>>
+    internal class DataEnvolope<TKey, TValue> : IEquatable<DataEnvolope<TKey, TValue>>
     {
         public readonly KeyValuePair<TKey, TValue?> keyValuePair;
         public DataEnvolope(TKey key, TValue? value)
