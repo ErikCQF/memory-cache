@@ -1,15 +1,15 @@
-﻿using MemoryCache.Infra;
+﻿using MemoryCache.Infra.Events;
 
 namespace MemoryCache
 {
-    public interface IDataStoreBridge<TKey, TValue>
+    public interface IMemoryCache<TKey, TValue>
     {
         int Count { get; }
         int Capacity { get; }
-
+        void SetCapacity(int capacity);
         void AddUpdate(TKey key, TValue value);
         TValue? Get(TKey key);
-        DataEnvolope<TKey, TValue>? LeasUsed();
+        KeyValuePair<TKey, TValue>? LeasUsed();
         void Notify(TKey key, DataStoreEventType dataStoreEventType);
         void Remove(TKey key);
     }

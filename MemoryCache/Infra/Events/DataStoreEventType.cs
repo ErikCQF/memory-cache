@@ -1,4 +1,4 @@
-﻿namespace MemoryCache.Infra
+﻿namespace MemoryCache.Infra.Events
 {
     public enum DataStoreEventType
     {

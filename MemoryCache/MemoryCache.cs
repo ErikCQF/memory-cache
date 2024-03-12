@@ -1,4 +1,4 @@
-﻿using MemoryCache.Infra;
+﻿using MemoryCache.Infra.Events;
 using MemoryCache.Infra.EvictionPolicies;
 using MemoryCache.Infra.Storages;
 using Microsoft.Extensions.Logging;
@@ -10,7 +10,7 @@ namespace MemoryCache
     /// <summary>
     /// The cache should implement the ‘least recently used’ approach when selecting which item to evict.
     /// </summary>
-    public sealed class DataStoreBridge<TKey, TValue> : IDataStoreBridge<TKey, TValue>
+    public sealed class MemoryCache<TKey, TValue> : IMemoryCache<TKey, TValue>
     {
         // Events
         private readonly Subject<DataStoreEvent<TKey>> _dataStoreSubject = new Subject<DataStoreEvent<TKey>>();
@@ -41,14 +41,14 @@ namespace MemoryCache
         private readonly IDataStorage<TKey, TValue> _dataStorage;
 
         //Settings, logs and others
-        private readonly ILogger<DataStoreBridge<TKey, TValue>> _logger;
+        private readonly ILogger<MemoryCache<TKey, TValue>> _logger;
 
-        private readonly IOptions<DataStoreOptions> _options;
+        private readonly IOptions<MemoryCacheOptions> _options;
 
         private object _lock = new object();
 
-        public DataStoreBridge(ILogger<DataStoreBridge<TKey, TValue>> logger,
-                         IOptions<DataStoreOptions> options,
+        public MemoryCache(ILogger<MemoryCache<TKey, TValue>> logger,
+                         IOptions<MemoryCacheOptions> options,
                          IEnumerable<IEvictionPolicy<TKey, TValue>> evictionPolicies,
                          IDataStorage<TKey, TValue> dataStorage
                          )
@@ -78,11 +78,13 @@ namespace MemoryCache
             }
         }
 
-
         public void AddUpdate(TKey key, TValue value)
         {
-            EvictIfNeeded();
-            AddOrUpdate(key, value);
+            lock (_lock)
+            {
+                EvictIfNeeded();
+                AddOrUpdate(key, value);
+            }
         }
         public void Notify(TKey key, DataStoreEventType dataStoreEventType)
         {
@@ -92,7 +94,6 @@ namespace MemoryCache
             {
                 found.NotifyChanged(dataStoreEventType);
             }
-
         }
 
         /// <summary>
@@ -104,10 +105,26 @@ namespace MemoryCache
             return _dataStorage.Get(key);
         }
 
-        public DataEnvolope<TKey, TValue>? LeasUsed()
+        public KeyValuePair<TKey, TValue>? LeasUsed()
         {
             return _dataStorage.LeasUsed();
         }
+        public void Remove(TKey key)
+        {
+            _dataStorage.Remove(key);
+        }
+
+        public void SetCapacity(int capacity)
+        {
+            // int this case, to nothing. better the trigger and excpetion that has not been handled
+            if (capacity <= 0)
+            {
+                return;
+            }
+
+            this._options.Value.Capacity = capacity;
+        }
+
         private void EvictIfNeeded()
         {
             if (_evictionPolicies.Any())
@@ -123,11 +140,5 @@ namespace MemoryCache
         {
             _dataStorage.AddOrUpdate(key, value);
         }
-
-        public void Remove(TKey key)
-        {
-            _dataStorage.Remove(key);
-        }
     }
-
 }

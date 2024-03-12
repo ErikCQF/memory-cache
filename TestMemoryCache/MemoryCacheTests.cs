@@ -1,5 +1,5 @@
 ﻿using MemoryCache;
-using MemoryCache.Infra;
+using MemoryCache.Infra.Events;
 using MemoryCache.Infra.EvictionPolicies;
 using MemoryCache.Infra.Storages;
 using Microsoft.Extensions.Logging;
@@ -8,25 +8,89 @@ using Moq;
 
 namespace TestMemoryCache
 {
-
-    public class DataStoreTests
+    public class MemoryCacheTests
     {
-        private readonly Mock<ILogger<DataStoreBridge<string, object>>> _loggerMock = new Mock<ILogger<DataStoreBridge<string, object>>>();
-        private readonly Mock<IOptions<DataStoreOptions>> _optionsMock = new Mock<IOptions<DataStoreOptions>>();
+        private readonly Mock<ILogger<MemoryCache<string, object>>> _loggerMock = new Mock<ILogger<MemoryCache<string, object>>>();
+        private readonly Mock<IOptions<MemoryCacheOptions>> _optionsMock = new Mock<IOptions<MemoryCacheOptions>>();
 
         private readonly IDataStorage<string, object> _dataStorage = new DataStorage<string, object>();
         private List<IEvictionPolicy<string, object>> _evictionPolices = new List<IEvictionPolicy<string, object>>();
+
+        [Theory]
+        [InlineData(10,10, 11, 1)]
+        [InlineData(10,10, 11, 2)]
+        [InlineData(10,10, 10, 1)]
+        [InlineData(10,10, 10, 2)]
+        [InlineData(10,10, 1000, 1000)]        
+
+        public void Capacity_is_Changed_Must_Be_Thread_Safe(int capacity, int capacityNew, int numItemsPerThread, int numThreads)
+        {
+            //Arrange
+            _optionsMock.SetupGet(o => o.Value).Returns(new MemoryCacheOptions { Capacity = capacity });
+
+            // Add the implemented Eviction Policy strategy 
+            _evictionPolices.Add(new EvictionStrategyLru<string, object>());
+
+            var dataStore = new MemoryCache<string, object>(_loggerMock.Object, _optionsMock.Object, _evictionPolices, _dataStorage);
+
+            var tasks = new Task[numThreads];
+
+            // Acct
+            // Concurrently add items
+            for (int i = 0; i < numThreads; i++)
+            {
+                tasks[i] = Task.Run(() =>
+                {
+                    int ii = i;
+                    for (int j = 0; j < numItemsPerThread; j++)
+                    {
+                        dataStore.AddUpdate(Guid.NewGuid().ToString(), ii * numItemsPerThread + j);
+
+                    }
+                });
+            }
+
+            Task.Delay(100).Wait();
+
+            dataStore.SetCapacity(capacityNew);
+
+            Task.WaitAll(tasks);
+
+            // start a new execution
+            // Concurrently add items
+            tasks = new Task[numThreads];
+
+            for (int i = 0; i < numThreads; i++)
+            {
+                tasks[i] = Task.Run(() =>
+                {
+                    int ii = i;
+                    for (int j = 0; j < numItemsPerThread; j++)
+                    {
+                        dataStore.AddUpdate(Guid.NewGuid().ToString(), ii * numItemsPerThread + j);
+
+                    }
+                });
+            }
+
+
+            //Assert
+            //Must respect the capacity
+            Assert.Equal(capacityNew, dataStore.Capacity);            
+            Assert.Equal(capacityNew, dataStore.Count);
+
+        }
 
         [Fact]
         public void Subscribers_DataStore_Receive_Eviction_Events()
         {
             // Arrange
-            _optionsMock.SetupGet(o => o.Value).Returns(new DataStoreOptions { Capacity = 2 });
+            _optionsMock.SetupGet(o => o.Value).Returns(new MemoryCacheOptions { Capacity = 2 });
 
             // Add the implemented Eviction Policy strategy 
             _evictionPolices.Add(new EvictionStrategyLru<string, object>());
 
-            var dataStore = new DataStoreBridge<string, object>(_loggerMock.Object, _optionsMock.Object, _evictionPolices, _dataStorage);
+            var dataStore = new MemoryCache<string, object>(_loggerMock.Object, _optionsMock.Object, _evictionPolices, _dataStorage);
 
             var evictionEventReceived = false;
             var keyoBeEvicted = "value1";
@@ -74,12 +138,12 @@ namespace TestMemoryCache
         public void Subscribers_To_DataItem_DataStore_Receive_Eviction_Events()
         {
             // Arrange
-            _optionsMock.SetupGet(o => o.Value).Returns(new DataStoreOptions { Capacity = 2 });
+            _optionsMock.SetupGet(o => o.Value).Returns(new MemoryCacheOptions { Capacity = 2 });
 
             // Add the implemented Eviction Policy strategy 
             _evictionPolices.Add(new EvictionStrategyLru<string, object>());
 
-            var dataStore = new DataStoreBridge<string, object>(_loggerMock.Object, _optionsMock.Object, _evictionPolices, _dataStorage);
+            var dataStore = new MemoryCache<string, object>(_loggerMock.Object, _optionsMock.Object, _evictionPolices, _dataStorage);
 
             var evictionEventReceived = false;
             var keyoBeEvicted = "key1";
@@ -129,17 +193,16 @@ namespace TestMemoryCache
 
         }
 
-
         [Fact]
         public void Subscribers_To_DataItem_Before_It_has_been_Added_DataStore_Receive_Eviction_Events()
         {
             // Arrange
-            _optionsMock.SetupGet(o => o.Value).Returns(new DataStoreOptions { Capacity = 2 });
+            _optionsMock.SetupGet(o => o.Value).Returns(new MemoryCacheOptions { Capacity = 2 });
 
             // Add the implemented Eviction Policy strategy 
             _evictionPolices.Add(new EvictionStrategyLru<string, object>());
 
-            var dataStore = new DataStoreBridge<string, object>(_loggerMock.Object, _optionsMock.Object, _evictionPolices, _dataStorage);
+            var dataStore = new MemoryCache<string, object>(_loggerMock.Object, _optionsMock.Object, _evictionPolices, _dataStorage);
 
             var evictionEventReceived = false;
             var keyoBeEvicted = "key1";
@@ -196,12 +259,12 @@ namespace TestMemoryCache
         public void Add_Same_Key_ShouldBe_ThreadSafe(int capacity, int numThreads)
         {
             //Arrange
-            _optionsMock.SetupGet(o => o.Value).Returns(new DataStoreOptions { Capacity = capacity });
+            _optionsMock.SetupGet(o => o.Value).Returns(new MemoryCacheOptions { Capacity = capacity });
 
             // Add the implemented Eviction Policy strategy 
             _evictionPolices.Add(new EvictionStrategyLru<string, object>());
 
-            var dataStore = new DataStoreBridge<string, object>(_loggerMock.Object, _optionsMock.Object, _evictionPolices, _dataStorage);
+            var dataStore = new MemoryCache<string, object>(_loggerMock.Object, _optionsMock.Object, _evictionPolices, _dataStorage);
 
             var tasks = new Task[numThreads];
 
@@ -232,16 +295,15 @@ namespace TestMemoryCache
         [InlineData(10, 10, 2)]
         [InlineData(10, 100, 100)]
         [InlineData(10, 1000, 5000)]
-
         public void Add_Should_Be_Thread_Safe(int capacity, int numItemsPerThread, int numThreads)
         {
             //Arrange
-            _optionsMock.SetupGet(o => o.Value).Returns(new DataStoreOptions { Capacity = capacity });
+            _optionsMock.SetupGet(o => o.Value).Returns(new MemoryCacheOptions { Capacity = capacity });
 
             // Add the implemented Eviction Policy strategy 
             _evictionPolices.Add(new EvictionStrategyLru<string, object>());
 
-            var dataStore = new DataStoreBridge<string, object>(_loggerMock.Object, _optionsMock.Object, _evictionPolices, _dataStorage);
+            var dataStore = new MemoryCache<string, object>(_loggerMock.Object, _optionsMock.Object, _evictionPolices, _dataStorage);
 
             var tasks = new Task[numThreads];
 
@@ -269,41 +331,6 @@ namespace TestMemoryCache
 
         }
 
-
-        //[Theory]
-        //[InlineData(10, 11, 1)]
-        //[InlineData(10, 11, 2)]
-        //[InlineData(10, 100, 100)]
-        //[InlineData(10, 100, 1000)]
-        //public void Add_RepetedKey_Should_Be_Thread_Safe(int capacity, int numItemsPerThread, int numThreads)
-        //{
-        //    //Arrange
-        //    optionsMock.SetupGet(o => o.Value).Returns(new DataStore<string, object>.DataStoreOptions { Capacity = capacity });
-        //    var dataStore = new DataStore<string, object>(loggerMock.Object, optionsMock.Object);
-        //    var tasks = new Task[numThreads];
-
-        //    //Acct
-        //    // Concurrently add items
-        //    for (int i = 0; i < numThreads; i++)
-        //    {
-        //        tasks[i] = Task.Run(() =>
-        //        {
-        //            for (int j = 0; j < numItemsPerThread; j++)
-        //            {
-        //                dataStore.Add($"Key{j}", j * numItemsPerThread);
-        //            }
-        //        });
-        //    }
-
-        //    Task.WaitAll(tasks);
-
-
-        //    //Assert
-        //    Assert.Equal(capacity, dataStore.Count);
-
-        //}
-
-
         [Theory]
         [InlineData(5, 3, 3)]
         [InlineData(5, 5, 5)]
@@ -311,12 +338,12 @@ namespace TestMemoryCache
         public void Add_Should_Add_Item_To_Cache(int capacity, int totalToAdd, int countResult)
         {
             // Arrange
-            _optionsMock.SetupGet(o => o.Value).Returns(new DataStoreOptions { Capacity = capacity });
+            _optionsMock.SetupGet(o => o.Value).Returns(new MemoryCacheOptions { Capacity = capacity });
 
             // Add the implemented Eviction Policy strategy 
             _evictionPolices.Add(new EvictionStrategyLru<string, object>());
 
-            var dataStore = new DataStoreBridge<string, object>(_loggerMock.Object, _optionsMock.Object, _evictionPolices, _dataStorage);
+            var dataStore = new MemoryCache<string, object>(_loggerMock.Object, _optionsMock.Object, _evictionPolices, _dataStorage);
 
             // Act 
             // It will exceed the capacity by one
@@ -334,13 +361,12 @@ namespace TestMemoryCache
         public void Add_Should_Evict_Least_Recently_ADDED_Item_When_Capacity_Is_Exceeded()
         {
             // Arrange
-
-            _optionsMock.SetupGet(o => o.Value).Returns(new DataStoreOptions { Capacity = 2 });
+            _optionsMock.SetupGet(o => o.Value).Returns(new MemoryCacheOptions { Capacity = 2 });
 
             // Add the implemented Eviction Policy strategy 
             _evictionPolices.Add(new EvictionStrategyLru<string, object>());
 
-            var dataStore = new DataStoreBridge<string, object>(_loggerMock.Object, _optionsMock.Object, _evictionPolices, _dataStorage);
+            var dataStore = new MemoryCache<string, object>(_loggerMock.Object, _optionsMock.Object, _evictionPolices, _dataStorage);
 
             // Act
             dataStore.AddUpdate("key1", "value1");
@@ -359,12 +385,12 @@ namespace TestMemoryCache
         {
             // Arrange
 
-            _optionsMock.SetupGet(o => o.Value).Returns(new DataStoreOptions { Capacity = 3 });
+            _optionsMock.SetupGet(o => o.Value).Returns(new MemoryCacheOptions { Capacity = 3 });
 
             // Add the implemented Eviction Policy strategy 
             _evictionPolices.Add(new EvictionStrategyLru<string, object>());
 
-            var dataStore = new DataStoreBridge<string, object>(_loggerMock.Object, _optionsMock.Object, _evictionPolices, _dataStorage);
+            var dataStore = new MemoryCache<string, object>(_loggerMock.Object, _optionsMock.Object, _evictionPolices, _dataStorage);
 
             // Act
             dataStore.AddUpdate("key1", "value1");
@@ -385,6 +411,5 @@ namespace TestMemoryCache
 
             Assert.Equal(3, dataStore.Count); // Cache count should remain within capacity
         }
-
     }
 }

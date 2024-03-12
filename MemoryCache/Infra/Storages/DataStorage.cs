@@ -66,10 +66,9 @@
                 _dataLinkedList.Remove(envolpe);
             }
         }
-        public DataEnvolope<TKey, TValue>? LeasUsed()
+        public KeyValuePair<TKey, TValue>? LeasUsed()
         {
-            return _dataLinkedList?.Last?.Value;
+            return _dataLinkedList?.Last?.Value?.keyValuePair;
         }
-
     }
 }

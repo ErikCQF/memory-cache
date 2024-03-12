@@ -1,5 +1,5 @@
 ﻿using MemoryCache;
-using MemoryCache.Infra;
+using MemoryCache.Infra.Events;
 using MemoryCache.Infra.EvictionPolicies;
 using Moq;
 
@@ -20,7 +20,7 @@ namespace TestMemoryCache
 
             int capacity = 3;
 
-            var dataStoreMock = new Mock<IDataStoreBridge<int, string>>();
+            var dataStoreMock = new Mock<IMemoryCache<int, string>>();
 
             dataStoreMock.SetupGet(d => d.Capacity).Returns(capacity);
             dataStoreMock.Setup(d => d.Count).Returns(() => countItem);
@@ -29,7 +29,7 @@ namespace TestMemoryCache
                 .Callback<int>(key => countItem--); // Reduce by one the mock total Counts
 
             // Assume data store alreadycontains  items and we're removing the least recently used item
-            var leastUsedItem = new DataEnvolope<int, string>(1, "Item1");
+            var leastUsedItem = new KeyValuePair<int, string>(1, "Item1");
 
             dataStoreMock.Setup(d => d.LeasUsed()).Returns(leastUsedItem);
 
@@ -41,7 +41,7 @@ namespace TestMemoryCache
 
             // Assert
             // Need notify
-            dataStoreMock.Verify(d => d.Notify(leastUsedItem.keyValuePair.Key, DataStoreEventType.Evicted), Times.Once);
+            dataStoreMock.Verify(d => d.Notify(leastUsedItem.Key, DataStoreEventType.Evicted), Times.Once);
             // Need remove from datastore
             dataStoreMock.Verify(d => d.Remove(It.IsAny<int>()), Times.Once);
             // Verify that countItem is decremented when Remove method is called                       

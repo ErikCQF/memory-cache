@@ -1,4 +1,4 @@
-﻿namespace MemoryCache.Infra
+﻿namespace MemoryCache.Infra.Storages
 {
     /// <summary>
     /// This class will be used to envolep the caching value. It can have metadate such as creation date, eviction priority 
@@ -17,7 +17,6 @@
 
             keyValuePair = new KeyValuePair<TKey, TValue?>(key, value);
         }
-
         public bool Equals(DataEnvolope<TKey, TValue>? other)
         {
             if (other == null || other.keyValuePair.Key == null)
@@ -32,7 +31,6 @@
 
             return keyValuePair.Key.Equals(other.keyValuePair.Key);
         }
-
         public override int GetHashCode()
         {
             if (keyValuePair.Key == null)
