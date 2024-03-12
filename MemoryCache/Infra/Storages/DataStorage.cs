@@ -1,4 +1,6 @@
-﻿namespace MemoryCache.Infra.Storages
+﻿using System.Collections.Generic;
+
+namespace MemoryCache.Infra.Storages
 {
     public class DataStorage<TKey, TValue> : IDataStorage<TKey, TValue>
     {
@@ -36,8 +38,11 @@
 
         public bool Contains(TKey key)
         {
-            var dataItem = new DataEnvolope<TKey, TValue>(key, default);
-            return _dataHashSet.Contains(dataItem);
+            lock (_lock)
+            {
+                var dataItem = new DataEnvolope<TKey, TValue>(key, default);
+                return _dataHashSet.Contains(dataItem);
+            }
 
         }
         public void AddOrUpdate(TKey key, TValue value)
@@ -66,9 +71,12 @@
                 _dataLinkedList.Remove(envolpe);
             }
         }
-        public KeyValuePair<TKey, TValue>? LeasUsed()
+        public KeyValuePair<TKey, TValue?>? LeasUsed()
         {
-            return _dataLinkedList?.Last?.Value?.keyValuePair;
+            lock (_lock)
+            {
+                return _dataLinkedList?.Last?.Value?.keyValuePair;
+            }
         }
     }
 }

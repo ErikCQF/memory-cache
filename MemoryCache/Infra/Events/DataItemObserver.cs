@@ -12,7 +12,7 @@ namespace MemoryCache.Infra.Events
 
         private readonly Subject<DataStoreEvent<TKey>> _dataStoreSubject = new Subject<DataStoreEvent<TKey>>();
         public IObservable<DataStoreEvent<TKey>> DataStoreEvents => _dataStoreSubject;
-        public bool Equals(DataItemObserver<TKey> other)
+        public bool Equals(DataItemObserver<TKey>? other)
         {
             if (other == null)
             {
@@ -26,7 +26,7 @@ namespace MemoryCache.Infra.Events
 
             return _key.Equals(other._key);
         }
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (obj is DataItemObserver<TKey> other)
             {
