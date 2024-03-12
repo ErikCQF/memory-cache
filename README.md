@@ -7,7 +7,7 @@
 - The cache should implement the 'least recently used' approach for evictions when the capacity is reached. [&#x2705; done]
 - The cache component is intended to be used as a singleton, ensuring thread safety. [&#x2705; done]
 
-## Desireblle:
+## Desirable:
 
 - Mechanism which allows the consumer to know when items get evicted. [&#x2705; done]
 
@@ -25,6 +25,7 @@
 - Regarding `DataStoreBridge` implementation. It need to decouple the DataStorage, ideally applying a CQRS approach. A approach thereby is by decoupling queries and commands that will be handled by a Mediator, so cache storage can be fully decoupled from the implementation
 
 ## Instantiate and Using Memory Cache
+```
 // Logger
 var logger = new LoggerFactory().CreateLogger<MemoryCache<int, string>>();
 
@@ -68,3 +69,4 @@ memoryCache.DataItemEvents(KeyToSubscribe)
 
 // Notify Subscribers
 memoryCache.Notify(11, DataStoreEventType.Evicted);
+```
