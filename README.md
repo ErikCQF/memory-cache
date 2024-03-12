@@ -14,21 +14,26 @@
 ## Architecture
 
 - `MemoryCache<TKey, TValue>` implements `MemoryCache<TKey, TValue>`.
+  
 - `MemoryCache<TKey, TValue>` depends on "n" `IEvictionPolicy<TKey, TValue>`.
-    The Eviction Algoritm has been decoupled from MemoryCache.
-    1 to N implementations of Evictions algorithms can be added.The one that is implemented is Leat recent used.
-    IEvictionPolicy<TKey, TValue> is decoupled from the Data Structure for storing date,so adhering to Solid principles
-- `MemoryCache<TKey, TValue>` depends on "n" `IDataStorage<TKey, TValue>`
-   Data storing is decoupled from Memory cache. I uses a implementation of `IDataStorage<TKey, TValue>`
+  The Eviction Algorithm has been decoupled from MemoryCache.
+  1 to N implementations of Eviction algorithms can be added. The one that is implemented is Least Recently Used.
+  `IEvictionPolicy<TKey, TValue>` is decoupled from the Data Structure for storing data, adhering to Solid principles.
+
+- `MemoryCache<TKey, TValue>` depends on "n" `IDataStorage<TKey, TValue>`.
+  Data storing is decoupled from Memory cache. It uses an implementation of `IDataStorage<TKey, TValue>`.
+
 - `DataEnvolope<TKey, TValue>` is used to encapsulate `TValue`. It implements `IEquatable`, so a generic `TKEY` can be used for indexing. Another important point is that this approach makes it easier for Extensions.
+
 - `DataItemObserver<TKey>` is used for Reactive Programming to notify evictions. It is also ready to notify other events such as updates; the event message can be extended to carry new information as well, such as delta in updates.
+
 
 ## Review and Refactory: [TODO]
 
 - At first view there is so many responsiblities to MemoryCache. Apply CQRS for data command and query. 
 - *Thread Safe*. It is using a lock approach. Apply non locking design patterns when it is possible.
-- Regarding `MemoryCache` implementation. It need to decouple the DataStorage [&#x2705; done]
-- Review Events
+- Regarding `MemoryCache` implementation. It need to decouple the DataStorage [&#x2705; done] and the Eviction Algorithm [&#x2705; done] 
+- Review Events, Risk of not disposing properly as it uses observable.
 
 ## Instantiate and Using Memory Cache
 ```
