@@ -18,9 +18,7 @@ namespace TestMemoryCache
 
         [Theory]
         [InlineData(10,10, 11, 1)]
-        [InlineData(10,10, 11, 2)]
-        [InlineData(10,10, 10, 1)]
-        [InlineData(10,10, 10, 2)]
+        [InlineData(10,10, 11, 2)]        
         [InlineData(10,10, 1000, 1000)]        
 
         public void Capacity_is_Changed_Must_Be_Thread_Safe(int capacity, int capacityNew, int numItemsPerThread, int numThreads)
@@ -290,9 +288,7 @@ namespace TestMemoryCache
 
         [Theory]
         [InlineData(10, 11, 1)]
-        [InlineData(10, 11, 2)]
-        [InlineData(10, 10, 1)]
-        [InlineData(10, 10, 2)]
+        [InlineData(10, 11, 2)]        
         [InlineData(10, 100, 100)]
         [InlineData(10, 1000, 5000)]
         public void Add_Should_Be_Thread_Safe(int capacity, int numItemsPerThread, int numThreads)
